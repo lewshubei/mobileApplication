@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:sentimo/models/user_role.dart';
 import 'package:sentimo/screens/login_screen.dart';
 import 'package:sentimo/screens/home_screen.dart';
+import 'package:sentimo/screens/counselor_home_screen.dart';
+import 'package:sentimo/services/user_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -59,7 +62,7 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// Add this new class to handle authentication state
+// Updated AuthWrapper to handle role-based navigation
 class AuthWrapper extends StatelessWidget {
   const AuthWrapper({Key? key}) : super(key: key);
 
@@ -71,7 +74,25 @@ class AuthWrapper extends StatelessWidget {
         // If the snapshot has user data, then they're already signed in
         if (snapshot.hasData && snapshot.data != null) {
           print("User is signed in: ${snapshot.data?.displayName}");
-          return const HomeScreen();
+          return FutureBuilder<UserRole>(
+            future: UserService().getCurrentUserRole(),
+            builder: (context, roleSnapshot) {
+              if (roleSnapshot.connectionState == ConnectionState.waiting) {
+                // Show loading indicator while fetching role
+                return const Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                );
+              }
+
+              // Navigate based on role
+              final role = roleSnapshot.data ?? UserRole.student;
+              if (role == UserRole.counselor) {
+                return const CounselorHomeScreen();
+              } else {
+                return const HomeScreen();
+              }
+            },
+          );
         }
 
         // Otherwise, they're not signed in

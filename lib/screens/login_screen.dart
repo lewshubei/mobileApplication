@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sentimo/models/user_role.dart';
 import 'package:sentimo/screens/home_screen.dart';
+import 'package:sentimo/screens/counselor_home_screen.dart';
 import 'package:sentimo/screens/register_screen.dart';
+import 'package:sentimo/services/user_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -17,6 +20,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _isLoading = false;
   String _errorMessage = '';
+  UserRole _selectedRole = UserRole.student;
+  final UserService _userService = UserService();
 
   @override
   void dispose() {
@@ -33,16 +38,23 @@ class _LoginScreenState extends State<LoginScreen> {
       });
 
       try {
-        await FirebaseAuth.instance.signInWithEmailAndPassword(
-          email: _emailController.text.trim(),
-          password: _passwordController.text,
-        );
+        // Sign in with email and password
+        final UserCredential userCredential = await FirebaseAuth.instance
+            .signInWithEmailAndPassword(
+              email: _emailController.text.trim(),
+              password: _passwordController.text,
+            );
 
         if (!mounted) return;
 
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
+        // Save the selected role
+        await _userService.saveUserRole(
+          userCredential.user!.uid,
+          _selectedRole,
         );
+
+        // Navigate based on role
+        _navigateBasedOnRole(_selectedRole);
       } on FirebaseAuthException catch (e) {
         setState(() {
           _errorMessage = e.message ?? 'An error occurred during login';
@@ -101,12 +113,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (!mounted) return;
 
-      // Ensure we're on the main thread for navigation
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
-        );
-      });
+      // Save the selected role
+      await _userService.saveUserRole(userCredential.user!.uid, _selectedRole);
+
+      // Navigate based on role
+      _navigateBasedOnRole(_selectedRole);
     } on FirebaseAuthException catch (e) {
       print("Firebase Auth Exception: ${e.message}");
       setState(() {
@@ -126,6 +137,20 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  void _navigateBasedOnRole(UserRole role) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (role == UserRole.counselor) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const CounselorHomeScreen()),
+        );
+      } else {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+        );
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -140,8 +165,22 @@ class _LoginScreenState extends State<LoginScreen> {
                 // Logo and App Name
                 Column(
                   children: [
-                    Image.asset('assets/images/logo.png', height: 200),
-
+                    Icon(
+                      Icons.psychology_alt,
+                      size: 80,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Sentimo',
+                      style: Theme.of(
+                        context,
+                      ).textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
                     Text(
                       'Track your mood, understand yourself',
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
@@ -152,7 +191,66 @@ class _LoginScreenState extends State<LoginScreen> {
                   ],
                 ),
 
-                const SizedBox(height: 48),
+                const SizedBox(height: 32),
+
+                // Role Selection
+                Card(
+                  elevation: 0,
+                  color: Colors.grey.shade50,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Select your role',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: RadioListTile<UserRole>(
+                                title: const Text('Student'),
+                                value: UserRole.student,
+                                groupValue: _selectedRole,
+                                onChanged: (UserRole? value) {
+                                  setState(() {
+                                    _selectedRole = value!;
+                                  });
+                                },
+                                contentPadding: EdgeInsets.zero,
+                                dense: true,
+                              ),
+                            ),
+                            Expanded(
+                              child: RadioListTile<UserRole>(
+                                title: const Text('Counselor'),
+                                value: UserRole.counselor,
+                                groupValue: _selectedRole,
+                                onChanged: (UserRole? value) {
+                                  setState(() {
+                                    _selectedRole = value!;
+                                  });
+                                },
+                                contentPadding: EdgeInsets.zero,
+                                dense: true,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 24),
 
                 // Login Form
                 Form(
@@ -285,6 +383,27 @@ class _LoginScreenState extends State<LoginScreen> {
                         icon: Image.network(
                           'https://developers.google.com/identity/images/g-logo.png',
                           height: 24,
+                          errorBuilder: (context, error, stackTrace) {
+                            // Fallback if image fails to load
+                            return Container(
+                              height: 24,
+                              width: 24,
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Center(
+                                child: Text(
+                                  "G",
+                                  style: TextStyle(
+                                    color: Colors.red.shade600,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
                         ),
                         label: const Text('Sign in with Google'),
                         style: OutlinedButton.styleFrom(
