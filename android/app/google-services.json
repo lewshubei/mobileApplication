@@ -1,0 +1,62 @@
+{
+  "project_info": {
+    "project_number": "142259917347",
+    "project_id": "sentimo-2f047",
+    "storage_bucket": "sentimo-2f047.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:142259917347:android:aac923b6a1c84c088c1796",
+        "android_client_info": {
+          "package_name": "com.example.sentimo"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "142259917347-9md4drcg5gg9soj2iab77mf50vkc0o7j.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.sentimo",
+            "certificate_hash": "85b4600c78dde9132c0c341bf206b59565193c15"
+          }
+        },
+        {
+          "client_id": "142259917347-m5r68qn42s1bm9ss0fslbdtchdgb0eiq.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.sentimo",
+            "certificate_hash": "e635dc7f1cb04044d4651ed3212b873283017e8f"
+          }
+        },
+        {
+          "client_id": "142259917347-lnllibo9gois381gi830d5ej885v4m6u.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDuINlVliYRQvBwh9vWGfTIC2IZLvt87OE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "142259917347-lnllibo9gois381gi830d5ej885v4m6u.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "142259917347-0ju4h1tbciof8vpm7g1lnh5128jes4rj.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.sentimo"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
