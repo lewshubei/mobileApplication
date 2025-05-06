@@ -91,6 +91,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
         _strengthPercentage = 1.0;
       }
     });
+    
+    // Validate the form when password changes
+    // This will update any error messages
+    if (_formKey.currentState != null) {
+      _formKey.currentState!.validate();
+    }
   }
 
   Future<void> _register() async {
@@ -174,6 +180,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             padding: const EdgeInsets.all(24),
             child: Form(
               key: _formKey,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
               child: Column(
                 children: [
                   // Email
@@ -214,6 +221,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           return 'Enter password';
                         if (value.length < 6) return 'Minimum 6 characters';
                         return null;
+                      },
+                      onChanged: (_) {
+                        // This ensures error messages update on every keystroke
+                        if (_formKey.currentState != null) {
+                          _formKey.currentState!.validate();
+                        }
                       },
                     ),
                   ),
