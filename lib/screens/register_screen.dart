@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:sentimo/screens/home_screen.dart';
+import 'package:sentimo/screens/counselor_home_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({Key? key}) : super(key: key);
@@ -11,19 +13,16 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
+  String _selectedRole = 'student';
   bool _isLoading = false;
   String _errorMessage = '';
 
   @override
   void dispose() {
-    _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
-    _confirmPasswordController.dispose();
     super.dispose();
   }
 
@@ -35,37 +34,49 @@ class _RegisterScreenState extends State<RegisterScreen> {
       });
 
       try {
-        // Create user with email and password
+        // Create user
         UserCredential userCredential = await FirebaseAuth.instance
             .createUserWithEmailAndPassword(
               email: _emailController.text.trim(),
-              password: _passwordController.text,
+              password: _passwordController.text.trim(),
             );
 
-        // Update display name
-        await userCredential.user?.updateDisplayName(
-          _nameController.text.trim(),
-        );
+        // Save role to Firestore
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userCredential.user!.uid)
+            .set({
+              'email': _emailController.text.trim(),
+              'role': _selectedRole,
+              'createdAt': FieldValue.serverTimestamp(),
+            });
 
         if (!mounted) return;
 
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
-        );
+        // Navigate by role
+        if (_selectedRole == 'counselor') {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const CounselorHomeScreen()),
+          );
+        } else {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const HomeScreen()),
+          );
+        }
       } on FirebaseAuthException catch (e) {
         setState(() {
-          _errorMessage = e.message ?? 'An error occurred during registration';
+          _errorMessage = e.message ?? 'Registration failed';
         });
       } catch (e) {
         setState(() {
-          _errorMessage = 'An unexpected error occurred';
+          _errorMessage = 'Unexpected error occurred';
         });
       } finally {
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-          });
-        }
+        setState(() {
+          _isLoading = false;
+        });
       }
     }
   }
@@ -73,131 +84,91 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Create Account'),
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-        foregroundColor: Theme.of(context).colorScheme.primary,
-      ),
+      appBar: AppBar(title: const Text('Register')),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24.0),
+            padding: const EdgeInsets.all(24),
             child: Form(
               key: _formKey,
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Name Field
-                  TextFormField(
-                    controller: _nameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Full Name',
-                      prefixIcon: Icon(Icons.person_outline),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter your name';
-                      }
-                      return null;
-                    },
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Email Field
+                  // Email
                   TextFormField(
                     controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
                     decoration: const InputDecoration(
                       labelText: 'Email',
-                      prefixIcon: Icon(Icons.email_outlined),
+                      prefixIcon: Icon(Icons.email),
                     ),
                     validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter your email';
-                      }
+                      if (value == null || value.isEmpty) return 'Enter email';
                       if (!RegExp(
                         r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
                       ).hasMatch(value)) {
-                        return 'Please enter a valid email';
+                        return 'Enter valid email';
                       }
                       return null;
                     },
                   ),
-
                   const SizedBox(height: 16),
 
-                  // Password Field
+                  // Password
                   TextFormField(
                     controller: _passwordController,
                     obscureText: true,
                     decoration: const InputDecoration(
                       labelText: 'Password',
-                      prefixIcon: Icon(Icons.lock_outline),
+                      prefixIcon: Icon(Icons.lock),
                     ),
                     validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter a password';
-                      }
-                      if (value.length < 6) {
-                        return 'Password must be at least 6 characters';
-                      }
+                      if (value == null || value.isEmpty)
+                        return 'Enter password';
+                      if (value.length < 6) return 'Minimum 6 characters';
                       return null;
                     },
                   ),
-
                   const SizedBox(height: 16),
 
-                  // Confirm Password Field
-                  TextFormField(
-                    controller: _confirmPasswordController,
-                    obscureText: true,
+                  // Role Dropdown
+                  DropdownButtonFormField<String>(
+                    value: _selectedRole,
                     decoration: const InputDecoration(
-                      labelText: 'Confirm Password',
-                      prefixIcon: Icon(Icons.lock_outline),
+                      labelText: 'Select Role',
+                      prefixIcon: Icon(Icons.person),
                     ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please confirm your password';
-                      }
-                      if (value != _passwordController.text) {
-                        return 'Passwords do not match';
-                      }
-                      return null;
-                    },
+                    items:
+                        ['student', 'counselor']
+                            .map(
+                              (role) => DropdownMenuItem(
+                                value: role,
+                                child: Text(
+                                  role[0].toUpperCase() + role.substring(1),
+                                ),
+                              ),
+                            )
+                            .toList(),
+                    onChanged:
+                        (value) => setState(() => _selectedRole = value!),
                   ),
-
                   const SizedBox(height: 24),
 
-                  // Error Message
+                  // Error
                   if (_errorMessage.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 16.0),
-                      child: Text(
-                        _errorMessage,
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.error,
-                          fontSize: 14,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
+                    Text(
+                      _errorMessage,
+                      style: const TextStyle(color: Colors.red),
                     ),
 
                   // Register Button
+                  const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: _isLoading ? null : _register,
                     child:
                         _isLoading
-                            ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
+                            ? const CircularProgressIndicator(
+                              color: Colors.white,
                             )
-                            : const Text('Create Account'),
+                            : const Text('Register'),
                   ),
                 ],
               ),
