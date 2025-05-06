@@ -20,7 +20,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _isLoading = false;
   String _errorMessage = '';
-  UserRole _selectedRole = UserRole.student;
   final UserService _userService = UserService();
 
   @override
@@ -47,14 +46,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
         if (!mounted) return;
 
-        // Save the selected role
-        await _userService.saveUserRole(
+        // Fetch the role of the user from Firestore
+        final fetchedRole = await _userService.getUserRole(
           userCredential.user!.uid,
-          _selectedRole,
         );
 
         // Navigate based on role
-        _navigateBasedOnRole(_selectedRole);
+        _navigateBasedOnRole(fetchedRole ?? UserRole.student);
       } on FirebaseAuthException catch (e) {
         setState(() {
           _errorMessage = e.message ?? 'An error occurred during login';
@@ -108,23 +106,20 @@ class _LoginScreenState extends State<LoginScreen> {
       final UserCredential userCredential = await FirebaseAuth.instance
           .signInWithCredential(credential);
 
-      // Debug print to verify user is signed in
-      print("Google Sign-In successful: ${userCredential.user?.displayName}");
-
       if (!mounted) return;
 
-      // Save the selected role
-      await _userService.saveUserRole(userCredential.user!.uid, _selectedRole);
+      // Fetch the role of the user from Firestore
+      final fetchedRole = await _userService.getUserRole(
+        userCredential.user!.uid,
+      );
 
       // Navigate based on role
-      _navigateBasedOnRole(_selectedRole);
+      _navigateBasedOnRole(fetchedRole ?? UserRole.student);
     } on FirebaseAuthException catch (e) {
-      print("Firebase Auth Exception: ${e.message}");
       setState(() {
         _errorMessage = e.message ?? 'An error occurred during Google sign-in';
       });
     } catch (e) {
-      print("Unexpected error during Google Sign-In: $e");
       setState(() {
         _errorMessage = 'An unexpected error occurred: $e';
       });
@@ -165,21 +160,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 // Logo and App Name
                 Column(
                   children: [
-                    Icon(
-                      Icons.psychology_alt,
-                      size: 80,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Sentimo',
-                      style: Theme.of(
-                        context,
-                      ).textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                    ),
+                    Image.asset('assets/images/logo.png', height: 180),
                     const SizedBox(height: 8),
                     Text(
                       'Track your mood, understand yourself',
@@ -192,65 +173,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
 
                 const SizedBox(height: 32),
-
-                // Role Selection
-                Card(
-                  elevation: 0,
-                  color: Colors.grey.shade50,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Select your role',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: RadioListTile<UserRole>(
-                                title: const Text('Student'),
-                                value: UserRole.student,
-                                groupValue: _selectedRole,
-                                onChanged: (UserRole? value) {
-                                  setState(() {
-                                    _selectedRole = value!;
-                                  });
-                                },
-                                contentPadding: EdgeInsets.zero,
-                                dense: true,
-                              ),
-                            ),
-                            Expanded(
-                              child: RadioListTile<UserRole>(
-                                title: const Text('Counselor'),
-                                value: UserRole.counselor,
-                                groupValue: _selectedRole,
-                                onChanged: (UserRole? value) {
-                                  setState(() {
-                                    _selectedRole = value!;
-                                  });
-                                },
-                                contentPadding: EdgeInsets.zero,
-                                dense: true,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 24),
 
                 // Login Form
                 Form(

@@ -41,4 +41,20 @@ class UserService {
       throw Exception('Failed to save user role');
     }
   }
+
+  // Fetch the role of a specific user
+  Future<UserRole?> getUserRole(String uid) async {
+    try {
+      final doc = await _firestore.collection('users').doc(uid).get();
+
+      if (doc.exists && doc.data()!.containsKey('role')) {
+        return UserRoleExtension.fromString(doc.data()!['role']);
+      } else {
+        return null;
+      }
+    } catch (e) {
+      print('Error fetching user role: $e');
+      return null;
+    }
+  }
 }
