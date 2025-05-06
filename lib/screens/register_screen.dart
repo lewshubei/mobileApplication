@@ -18,6 +18,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String _selectedRole = 'student';
   bool _isLoading = false;
   String _errorMessage = '';
+  bool _isPasswordFocused = false;
+  
+  // Default strength level for UI
+  String _strengthLevel = 'Very Weak';
+  double _strengthPercentage = 0.25; // 25% filled bar
 
   @override
   void dispose() {
@@ -81,6 +86,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
+  // Get color based on strength level
+  Color _getStrengthColor() {
+    switch (_strengthLevel) {
+      case 'Very Weak':
+        return Colors.red;
+      case 'Weak':
+        return Colors.orange;
+      case 'Good':
+        return Colors.yellow;
+      case 'Strong':
+        return Colors.green;
+      default:
+        return Colors.red;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -113,20 +134,55 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   const SizedBox(height: 16),
 
                   // Password
-                  TextFormField(
-                    controller: _passwordController,
-                    obscureText: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Password',
-                      prefixIcon: Icon(Icons.lock),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty)
-                        return 'Enter password';
-                      if (value.length < 6) return 'Minimum 6 characters';
-                      return null;
+                  Focus(
+                    onFocusChange: (hasFocus) {
+                      setState(() {
+                        _isPasswordFocused = hasFocus;
+                      });
                     },
+                    child: TextFormField(
+                      controller: _passwordController,
+                      obscureText: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Password',
+                        prefixIcon: Icon(Icons.lock),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty)
+                          return 'Enter password';
+                        if (value.length < 6) return 'Minimum 6 characters';
+                        return null;
+                      },
+                    ),
                   ),
+                  
+                  // Password Strength Indicator
+                  if (_isPasswordFocused) ...[
+                    const SizedBox(height: 8),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: LinearProgressIndicator(
+                            value: _strengthPercentage,
+                            minHeight: 8,
+                            backgroundColor: Colors.grey.shade300,
+                            valueColor: AlwaysStoppedAnimation<Color>(_getStrengthColor()),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _strengthLevel,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: _getStrengthColor(),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                   const SizedBox(height: 16),
 
                   // Role Dropdown
