@@ -39,11 +39,10 @@ class UserProvider extends ChangeNotifier {
 
   Future<void> updateAvatar(String base64Image) async {
     try {
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(_user!.uid)
-          .set({'avatar': base64Image}, SetOptions(merge: true));
-      
+      await FirebaseFirestore.instance.collection('users').doc(_user!.uid).set({
+        'avatar': base64Image,
+      }, SetOptions(merge: true));
+
       _avatarBase64 = base64Image;
       notifyListeners();
     } catch (e) {
@@ -51,7 +50,6 @@ class UserProvider extends ChangeNotifier {
       rethrow;
     }
   }
-  
 
   Future<void> updatePhoneNumber(String number) async {
     await FirebaseFirestore.instance.collection('users').doc(_user!.uid).set({

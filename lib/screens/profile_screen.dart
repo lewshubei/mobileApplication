@@ -45,7 +45,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         setState(() {
           _avatarBase64 = doc.data()?['avatar'];
           _phoneController.text =
-              doc.data()?['phoneNumber'] ?? user?.phoneNumber ?? '';
+              doc.data()?['phoneNumber'] ?? user.phoneNumber ?? '';
         });
       }
     } catch (e) {
@@ -299,12 +299,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
-          'phoneNumber': _phoneController.text,
-        }, SetOptions(merge: true));
+        await Future.wait([
+          user.updateDisplayName(_nameController.text),
+          FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+            'name': _nameController.text,
+            'phoneNumber': _phoneController.text,
+          }, SetOptions(merge: true)),
+        ]);
 
         await userProvider.refreshUser();
-        await userProvider.updatePhoneNumber(_phoneController.text);
+
         setState(() {
           _isEditing = false;
           _isSaving = false;
@@ -325,13 +329,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildUserInfoCard(User? user, ThemeData theme) {
     return Consumer<UserProvider>(
       builder: (context, userProvider, _) {
+        final currentUser = userProvider.user ?? user;
         return Card(
           elevation: 4,
           child: Padding(
             padding: const EdgeInsets.all(20),
             child: Column(
               children: [
-                _buildInfoRow(Icons.person, 'Name', user?.displayName ?? '-'),
+                _buildInfoRow(
+                  Icons.person,
+                  'Name',
+                  currentUser?.displayName ?? '-',
+                ),
                 const Divider(height: 30),
                 _buildInfoRow(Icons.email, 'Email', user?.email ?? '-'),
                 const Divider(height: 30),
