@@ -7,8 +7,7 @@ import 'package:sentimo/screens/login_screen.dart';
 import 'package:sentimo/screens/profile_screen.dart';
 
 class HomeScreen extends StatelessWidget {
-  const HomeScreen({Key? key}) : super(key: key);
-
+  const HomeScreen({super.key});
   Future<void> _signOut(BuildContext context) async {
     await FirebaseAuth.instance.signOut();
     if (context.mounted) {
@@ -72,6 +71,8 @@ class HomeScreen extends StatelessWidget {
     return Consumer<UserProvider>(
       builder: (context, userProvider, _) {
         final currentUser = userProvider.user ?? user;
+        // print('Avatar URL: ${userProvider.avatarUrl}');
+        // print('Photo URL: ${user?.photoURL}');
         return DrawerHeader(
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -89,14 +90,17 @@ class HomeScreen extends StatelessWidget {
                 radius: 32,
                 backgroundColor: Colors.white.withOpacity(0.3),
                 backgroundImage:
-                    userProvider.avatarBase64 != null
-                        ? MemoryImage(base64Decode(userProvider.avatarBase64!))
-                        : (currentUser?.photoURL != null
-                            ? NetworkImage(currentUser!.photoURL!)
+                    userProvider.avatarUrl != null
+                        ? NetworkImage(userProvider.avatarUrl!)
+                        : (user?.photoURL != null
+                            ? NetworkImage(user!.photoURL!)
                             : null),
+                onBackgroundImageError:
+                    userProvider.avatarUrl != null || user?.photoURL != null
+                        ? (e, _) => print("Image load error: $e")
+                        : null,
                 child:
-                    userProvider.avatarBase64 == null &&
-                            currentUser?.photoURL == null
+                    userProvider.avatarUrl == null && user?.photoURL == null
                         ? Icon(Icons.person, size: 36, color: Colors.white)
                         : null,
               ),

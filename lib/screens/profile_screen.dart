@@ -1,14 +1,16 @@
 import 'dart:io';
 import 'dart:convert';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:sentimo/providers/user_provider.dart';
+import 'package:sentimo/services/cloudinary_service.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({Key? key}) : super(key: key);
+  const ProfileScreen({super.key});
 
   @override
   _ProfileScreenState createState() => _ProfileScreenState();
@@ -19,7 +21,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isSaving = false;
   late TextEditingController _nameController;
   late TextEditingController _phoneController;
-  String? _avatarBase64;
+  String? _avatarUrl;
+
+  FilePickerResult? _filePickerResult;
+
+  void _openFilePicker() async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      allowMultiple: false,
+      allowedExtensions: ["jpg", "jpeg", "png"],
+      type: FileType.custom,
+    );
+    setState(() {
+      _filePickerResult = result;
+    });
+  }
 
   @override
   void initState() {
@@ -43,7 +58,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       if (doc.exists) {
         setState(() {
-          _avatarBase64 = doc.data()?['avatar'];
+          _avatarUrl = doc.data()?['avatarUrl'];
           _phoneController.text =
               doc.data()?['phoneNumber'] ?? user.phoneNumber ?? '';
         });
@@ -63,19 +78,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
 
     if (pickedFile != null) {
-      final bytes = await File(pickedFile.path).readAsBytes();
-      final base64String = base64Encode(bytes);
-      await _saveAvatarToFirestore(base64String);
+      try {
+        final file = File(pickedFile.path);
+        final filePickerResult = FilePickerResult([
+          PlatformFile(
+            path: pickedFile.path,
+            name: pickedFile.path.split('/').last,
+            size: await file.length(),
+          ),
+        ]);
+
+        final imageUrl = await uploadToCloudinary(filePickerResult);
+
+        if (imageUrl != null) {
+          await _saveAvatarToFirestore(imageUrl);
+        }
+      } catch (e) {
+        print('Error processing image: $e');
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to upload image: $e')));
+      }
     }
   }
 
-  Future<void> _saveAvatarToFirestore(String base64Image) async {
+  Future<void> _saveAvatarToFirestore(String imageUrl) async {
     setState(() => _isSaving = true);
     try {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
-      await userProvider.updateAvatar(base64Image);
+      await userProvider.updateAvatar(imageUrl);
 
-      setState(() => _isSaving = false);
+      await userProvider.refreshUser();
+
+      setState(() {
+        _avatarUrl = imageUrl;
+        _isSaving = false;
+      });
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Profile picture updated successfully')),
       );
@@ -146,13 +185,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: CircleAvatar(
               radius: 65,
               backgroundImage:
-                  _avatarBase64 != null
-                      ? MemoryImage(base64Decode(_avatarBase64!))
+                  _avatarUrl != null
+                      ? NetworkImage(_avatarUrl!)
                       : (user?.photoURL != null
                           ? NetworkImage(user!.photoURL!)
                           : null),
               child:
-                  _avatarBase64 == null && user?.photoURL == null
+                  _avatarUrl == null && user?.photoURL == null
                       ? const Icon(Icons.person, size: 60, color: Colors.white)
                       : null,
             ),

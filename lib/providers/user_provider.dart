@@ -4,15 +4,16 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class UserProvider extends ChangeNotifier {
   User? _user;
-  String? _avatarBase64;
+  String? _avatarUrl;
   String? _phoneNumber;
 
   User? get user => _user;
-  String? get avatarBase64 => _avatarBase64;
+  String? get avatarUrl => _avatarUrl;
   String? get phoneNumber => _phoneNumber;
 
   void updateUser(User? user) {
     _user = user;
+    _avatarUrl = user?.photoURL;
     notifyListeners();
   }
 
@@ -25,6 +26,7 @@ class UserProvider extends ChangeNotifier {
   }
 
   Future<void> _loadUserData() async {
+    _avatarUrl = user?.photoURL;
     final doc =
         await FirebaseFirestore.instance
             .collection('users')
@@ -32,18 +34,24 @@ class UserProvider extends ChangeNotifier {
             .get();
 
     if (doc.exists) {
-      _avatarBase64 = doc.data()?['avatar'];
+      _avatarUrl = doc.data()?['_avatarUrl'] ?? user?.photoURL;
       _phoneNumber = doc.data()?['phoneNumber'];
     }
   }
 
-  Future<void> updateAvatar(String base64Image) async {
+  Future<void> updateAvatar(String imageUrl) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
     try {
-      await FirebaseFirestore.instance.collection('users').doc(_user!.uid).set({
-        'avatar': base64Image,
+      await user.updatePhotoURL(imageUrl);
+
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        'avatarUrl': imageUrl,
       }, SetOptions(merge: true));
 
-      _avatarBase64 = base64Image;
+      // Update local user data
+      _user = FirebaseAuth.instance.currentUser;
       notifyListeners();
     } catch (e) {
       print('Error updating avatar: $e');
