@@ -18,12 +18,85 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String _selectedRole = 'student';
   bool _isLoading = false;
   String _errorMessage = '';
+  bool _isPasswordFocused = false;
+  
+  // Password strength properties
+  String _strengthLevel = 'Very Weak';
+  double _strengthPercentage = 0.25; // 25% filled bar
+
+  @override
+  void initState() {
+    super.initState();
+    // Add listener to password controller to update strength on changes
+    _passwordController.addListener(_updatePasswordStrength);
+  }
 
   @override
   void dispose() {
+    _passwordController.removeListener(_updatePasswordStrength);
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  // Password strength evaluation logic
+  void _updatePasswordStrength() {
+    final password = _passwordController.text;
+    
+    if (password.isEmpty) {
+      setState(() {
+        _strengthLevel = 'Very Weak';
+        _strengthPercentage = 0.25;
+      });
+      return;
+    }
+    
+    // Check password strength based on various criteria
+    final hasUppercase = password.contains(RegExp(r'[A-Z]'));
+    final hasLowercase = password.contains(RegExp(r'[a-z]'));
+    final hasDigits = password.contains(RegExp(r'[0-9]'));
+    final hasSpecialChars = password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'));
+    
+    // Calculate strength score (0-4)
+    int strengthScore = 0;
+    
+    // Length criteria
+    if (password.length >= 6) strengthScore++;
+    
+    // Character type combination criteria
+    int typesCount = 0;
+    if (hasUppercase) typesCount++;
+    if (hasLowercase) typesCount++;
+    if (hasDigits) typesCount++;
+    if (hasSpecialChars) typesCount++;
+    
+    // Add score based on character variety
+    if (typesCount >= 2) strengthScore++;
+    if (typesCount >= 3) strengthScore++;
+    if (typesCount >= 4) strengthScore++;
+    
+    // Set strength level and percentage based on score
+    setState(() {
+      if (strengthScore <= 1) {
+        _strengthLevel = 'Very Weak';
+        _strengthPercentage = 0.25;
+      } else if (strengthScore == 2) {
+        _strengthLevel = 'Weak';
+        _strengthPercentage = 0.5;
+      } else if (strengthScore == 3) {
+        _strengthLevel = 'Good';
+        _strengthPercentage = 0.75;
+      } else {
+        _strengthLevel = 'Strong';
+        _strengthPercentage = 1.0;
+      }
+    });
+    
+    // Validate the form when password changes
+    // This will update any error messages
+    if (_formKey.currentState != null) {
+      _formKey.currentState!.validate();
+    }
   }
 
   Future<void> _register() async {
@@ -81,6 +154,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
+  // Get color based on strength level
+  Color _getStrengthColor() {
+    switch (_strengthLevel) {
+      case 'Very Weak':
+        return Colors.red;
+      case 'Weak':
+        return Colors.orange;
+      case 'Good':
+        return Colors.yellow;
+      case 'Strong':
+        return Colors.green;
+      default:
+        return Colors.red;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -91,6 +180,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             padding: const EdgeInsets.all(24),
             child: Form(
               key: _formKey,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
               child: Column(
                 children: [
                   // Email
@@ -113,20 +203,61 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   const SizedBox(height: 16),
 
                   // Password
-                  TextFormField(
-                    controller: _passwordController,
-                    obscureText: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Password',
-                      prefixIcon: Icon(Icons.lock),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty)
-                        return 'Enter password';
-                      if (value.length < 6) return 'Minimum 6 characters';
-                      return null;
+                  Focus(
+                    onFocusChange: (hasFocus) {
+                      setState(() {
+                        _isPasswordFocused = hasFocus;
+                      });
                     },
+                    child: TextFormField(
+                      controller: _passwordController,
+                      obscureText: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Password',
+                        prefixIcon: Icon(Icons.lock),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty)
+                          return 'Enter password';
+                        if (value.length < 6) return 'Minimum 6 characters';
+                        return null;
+                      },
+                      onChanged: (_) {
+                        // This ensures error messages update on every keystroke
+                        if (_formKey.currentState != null) {
+                          _formKey.currentState!.validate();
+                        }
+                      },
+                    ),
                   ),
+                  
+                  // Password Strength Indicator
+                  if (_isPasswordFocused) ...[
+                    const SizedBox(height: 8),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: LinearProgressIndicator(
+                            value: _strengthPercentage,
+                            minHeight: 8,
+                            backgroundColor: Colors.grey.shade300,
+                            valueColor: AlwaysStoppedAnimation<Color>(_getStrengthColor()),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _strengthLevel,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: _getStrengthColor(),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                   const SizedBox(height: 16),
 
                   // Role Dropdown
