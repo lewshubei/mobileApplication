@@ -302,14 +302,36 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                       // Register Button
                       const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: _isLoading ? null : _register,
-                        child:
-                            _isLoading
-                                ? const CircularProgressIndicator(
-                                  color: Colors.white,
+                      SizedBox(
+                        width: double.infinity, // Full width button
+                        child: ElevatedButton(
+                          onPressed: _isLoading ? null : _register,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.indigo,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 12), // Adjusted padding instead of fixed height
+                            minimumSize: const Size.fromHeight(48), // Standard form field height in Flutter
+                          ),
+                          child: _isLoading
+                              ? const SizedBox(
+                                  height: 24,
+                                  width: 24,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2.5,
+                                  ),
                                 )
-                                : const Text('Register'),
+                              : const Text(
+                                  'Register',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                        ),
                       ),
                     ],
                   ),
