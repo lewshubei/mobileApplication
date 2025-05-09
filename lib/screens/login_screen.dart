@@ -6,9 +6,10 @@ import 'package:sentimo/screens/home_screen.dart';
 import 'package:sentimo/screens/counselor_home_screen.dart';
 import 'package:sentimo/screens/register_screen.dart';
 import 'package:sentimo/services/user_service.dart';
+import 'package:sentimo/screens/forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({Key? key}) : super(key: key);
+  const LoginScreen({super.key});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -226,7 +227,12 @@ class _LoginScreenState extends State<LoginScreen> {
                         alignment: Alignment.centerRight,
                         child: TextButton(
                           onPressed: () {
-                            // TODO: Implement forgot password functionality
+                            // Navigate to ForgotPasswordScreen
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) => const ForgotPasswordScreen(),
+                              ),
+                            );
                           },
                           child: Text(
                             'Forgot Password?',
