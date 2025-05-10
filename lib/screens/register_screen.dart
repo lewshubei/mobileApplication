@@ -178,131 +178,165 @@ class _RegisterScreenState extends State<RegisterScreen> {
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
-            child: Form(
-              key: _formKey,
-              autovalidateMode: AutovalidateMode.onUserInteraction,
-              child: Column(
-                children: [
-                  // Email
-                  TextFormField(
-                    controller: _emailController,
-                    decoration: const InputDecoration(
-                      labelText: 'Email',
-                      prefixIcon: Icon(Icons.email),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) return 'Enter email';
-                      if (!RegExp(
-                        r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
-                      ).hasMatch(value)) {
-                        return 'Enter valid email';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Password
-                  Focus(
-                    onFocusChange: (hasFocus) {
-                      setState(() {
-                        _isPasswordFocused = hasFocus;
-                      });
-                    },
-                    child: TextFormField(
-                      controller: _passwordController,
-                      obscureText: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Password',
-                        prefixIcon: Icon(Icons.lock),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty)
-                          return 'Enter password';
-                        if (value.length < 6) return 'Minimum 6 characters';
-                        return null;
-                      },
-                      onChanged: (_) {
-                        // This ensures error messages update on every keystroke
-                        if (_formKey.currentState != null) {
-                          _formKey.currentState!.validate();
-                        }
-                      },
-                    ),
-                  ),
-                  
-                  // Password Strength Indicator
-                  if (_isPasswordFocused) ...[
-                    const SizedBox(height: 8),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: LinearProgressIndicator(
-                            value: _strengthPercentage,
-                            minHeight: 8,
-                            backgroundColor: Colors.grey.shade300,
-                            valueColor: AlwaysStoppedAnimation<Color>(_getStrengthColor()),
-                          ),
+            child: Column(
+              children: [
+                // Logo
+                Image.asset(
+                  'assets/images/logo.png',
+                  height: 180,
+                  width: 180,
+                ),
+                const SizedBox(height: 24),
+                
+                Form(
+                  key: _formKey,
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                  child: Column(
+                    children: [
+                      // Email
+                      TextFormField(
+                        controller: _emailController,
+                        decoration: const InputDecoration(
+                          labelText: 'Email',
+                          prefixIcon: Icon(Icons.email),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _strengthLevel,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: _getStrengthColor(),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) return 'Enter email';
+                          if (!RegExp(
+                            r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                          ).hasMatch(value)) {
+                            return 'Enter valid email';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Password
+                      Focus(
+                        onFocusChange: (hasFocus) {
+                          setState(() {
+                            _isPasswordFocused = hasFocus;
+                          });
+                        },
+                        child: TextFormField(
+                          controller: _passwordController,
+                          obscureText: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Password',
+                            prefixIcon: Icon(Icons.lock),
                           ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty)
+                              return 'Enter password';
+                            if (value.length < 6) return 'Minimum 6 characters';
+                            return null;
+                          },
+                          onChanged: (_) {
+                            // This ensures error messages update on every keystroke
+                            if (_formKey.currentState != null) {
+                              _formKey.currentState!.validate();
+                            }
+                          },
+                        ),
+                      ),
+                      
+                      // Password Strength Indicator
+                      if (_isPasswordFocused) ...[
+                        const SizedBox(height: 8),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(4),
+                              child: LinearProgressIndicator(
+                                value: _strengthPercentage,
+                                minHeight: 8,
+                                backgroundColor: Colors.grey.shade300,
+                                valueColor: AlwaysStoppedAnimation<Color>(_getStrengthColor()),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _strengthLevel,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: _getStrengthColor(),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
-                    ),
-                  ],
-                  const SizedBox(height: 16),
+                      const SizedBox(height: 16),
 
-                  // Role Dropdown
-                  DropdownButtonFormField<String>(
-                    value: _selectedRole,
-                    decoration: const InputDecoration(
-                      labelText: 'Select Role',
-                      prefixIcon: Icon(Icons.person),
-                    ),
-                    items:
-                        ['student', 'counselor']
-                            .map(
-                              (role) => DropdownMenuItem(
-                                value: role,
-                                child: Text(
-                                  role[0].toUpperCase() + role.substring(1),
+                      // Role Dropdown
+                      DropdownButtonFormField<String>(
+                        value: _selectedRole,
+                        decoration: const InputDecoration(
+                          labelText: 'Select Role',
+                          prefixIcon: Icon(Icons.person),
+                        ),
+                        items:
+                            ['student', 'counselor']
+                                .map(
+                                  (role) => DropdownMenuItem(
+                                    value: role,
+                                    child: Text(
+                                      role[0].toUpperCase() + role.substring(1),
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                        onChanged:
+                            (value) => setState(() => _selectedRole = value!),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Error
+                      if (_errorMessage.isNotEmpty)
+                        Text(
+                          _errorMessage,
+                          style: const TextStyle(color: Colors.red),
+                        ),
+
+                      // Register Button
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity, // Full width button
+                        child: ElevatedButton(
+                          onPressed: _isLoading ? null : _register,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.indigo,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 12), // Adjusted padding instead of fixed height
+                            minimumSize: const Size.fromHeight(48), // Standard form field height in Flutter
+                          ),
+                          child: _isLoading
+                              ? const SizedBox(
+                                  height: 24,
+                                  width: 24,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2.5,
+                                  ),
+                                )
+                              : const Text(
+                                  'Register',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
-                              ),
-                            )
-                            .toList(),
-                    onChanged:
-                        (value) => setState(() => _selectedRole = value!),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 24),
-
-                  // Error
-                  if (_errorMessage.isNotEmpty)
-                    Text(
-                      _errorMessage,
-                      style: const TextStyle(color: Colors.red),
-                    ),
-
-                  // Register Button
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: _isLoading ? null : _register,
-                    child:
-                        _isLoading
-                            ? const CircularProgressIndicator(
-                              color: Colors.white,
-                            )
-                            : const Text('Register'),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
