@@ -222,37 +222,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   ),
                 ),
                 
-                // Instructions for testing
-                if (_isSuccess)
-                  Container(
-                    margin: const EdgeInsets.only(top: 32),
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.blue.shade200),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Testing Instructions:',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blue.shade700,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          '• Check the inbox of ${_emailController.text}\n'
-                          '• Click the link in the email from Firebase\n'
-                          '• Create a new password\n'
-                          '• Return to the app and log in with your new password',
-                          style: TextStyle(color: Colors.blue.shade700),
-                        ),
-                      ],
-                    ),
-                  ),
               ],
             ),
           ),
