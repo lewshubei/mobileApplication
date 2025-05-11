@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:sentimo/screens/login_screen.dart';
 
 class CounselorHomeScreen extends StatelessWidget {
-  const CounselorHomeScreen({Key? key}) : super(key: key);
+  const CounselorHomeScreen({super.key});
 
   Future<void> _signOut(BuildContext context) async {
     await FirebaseAuth.instance.signOut();

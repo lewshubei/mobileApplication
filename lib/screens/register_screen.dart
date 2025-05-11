@@ -5,7 +5,7 @@ import 'package:sentimo/screens/home_screen.dart';
 import 'package:sentimo/screens/counselor_home_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
-  const RegisterScreen({Key? key}) : super(key: key);
+  const RegisterScreen({super.key});
 
   @override
   State<RegisterScreen> createState() => _RegisterScreenState();
@@ -19,7 +19,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _isLoading = false;
   String _errorMessage = '';
   bool _isPasswordFocused = false;
-  
+
   // Password strength properties
   String _strengthLevel = 'Very Weak';
   double _strengthPercentage = 0.25; // 25% filled bar
@@ -42,7 +42,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   // Password strength evaluation logic
   void _updatePasswordStrength() {
     final password = _passwordController.text;
-    
+
     if (password.isEmpty) {
       setState(() {
         _strengthLevel = 'Very Weak';
@@ -50,31 +50,33 @@ class _RegisterScreenState extends State<RegisterScreen> {
       });
       return;
     }
-    
+
     // Check password strength based on various criteria
     final hasUppercase = password.contains(RegExp(r'[A-Z]'));
     final hasLowercase = password.contains(RegExp(r'[a-z]'));
     final hasDigits = password.contains(RegExp(r'[0-9]'));
-    final hasSpecialChars = password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'));
-    
+    final hasSpecialChars = password.contains(
+      RegExp(r'[!@#$%^&*(),.?":{}|<>]'),
+    );
+
     // Calculate strength score (0-4)
     int strengthScore = 0;
-    
+
     // Length criteria
     if (password.length >= 6) strengthScore++;
-    
+
     // Character type combination criteria
     int typesCount = 0;
     if (hasUppercase) typesCount++;
     if (hasLowercase) typesCount++;
     if (hasDigits) typesCount++;
     if (hasSpecialChars) typesCount++;
-    
+
     // Add score based on character variety
     if (typesCount >= 2) strengthScore++;
     if (typesCount >= 3) strengthScore++;
     if (typesCount >= 4) strengthScore++;
-    
+
     // Set strength level and percentage based on score
     setState(() {
       if (strengthScore <= 1) {
@@ -91,7 +93,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         _strengthPercentage = 1.0;
       }
     });
-    
+
     // Validate the form when password changes
     // This will update any error messages
     if (_formKey.currentState != null) {
@@ -181,13 +183,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
             child: Column(
               children: [
                 // Logo
-                Image.asset(
-                  'assets/images/logo.png',
-                  height: 180,
-                  width: 180,
-                ),
+                Image.asset('assets/images/logo.png', height: 180, width: 180),
                 const SizedBox(height: 24),
-                
+
                 Form(
                   key: _formKey,
                   autovalidateMode: AutovalidateMode.onUserInteraction,
@@ -201,7 +199,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           prefixIcon: Icon(Icons.email),
                         ),
                         validator: (value) {
-                          if (value == null || value.isEmpty) return 'Enter email';
+                          if (value == null || value.isEmpty)
+                            return 'Enter email';
                           if (!RegExp(
                             r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
                           ).hasMatch(value)) {
@@ -227,8 +226,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             prefixIcon: Icon(Icons.lock),
                           ),
                           validator: (value) {
-                            if (value == null || value.isEmpty)
+                            if (value == null || value.isEmpty) {
                               return 'Enter password';
+                            }
                             if (value.length < 6) return 'Minimum 6 characters';
                             return null;
                           },
@@ -240,7 +240,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           },
                         ),
                       ),
-                      
+
                       // Password Strength Indicator
                       if (_isPasswordFocused) ...[
                         const SizedBox(height: 8),
@@ -253,7 +253,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 value: _strengthPercentage,
                                 minHeight: 8,
                                 backgroundColor: Colors.grey.shade300,
-                                valueColor: AlwaysStoppedAnimation<Color>(_getStrengthColor()),
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  _getStrengthColor(),
+                                ),
                               ),
                             ),
                             const SizedBox(height: 4),
@@ -312,25 +314,30 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            padding: const EdgeInsets.symmetric(vertical: 12), // Adjusted padding instead of fixed height
-                            minimumSize: const Size.fromHeight(48), // Standard form field height in Flutter
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 12,
+                            ), // Adjusted padding instead of fixed height
+                            minimumSize: const Size.fromHeight(
+                              48,
+                            ), // Standard form field height in Flutter
                           ),
-                          child: _isLoading
-                              ? const SizedBox(
-                                  height: 24,
-                                  width: 24,
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white,
-                                    strokeWidth: 2.5,
+                          child:
+                              _isLoading
+                                  ? const SizedBox(
+                                    height: 24,
+                                    width: 24,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2.5,
+                                    ),
+                                  )
+                                  : const Text(
+                                    'Register',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
-                                )
-                              : const Text(
-                                  'Register',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
                         ),
                       ),
                     ],
