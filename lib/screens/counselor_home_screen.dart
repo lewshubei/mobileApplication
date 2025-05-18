@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:sentimo/screens/login_screen.dart';
@@ -260,10 +259,7 @@ class CounselorHomeScreen extends StatelessWidget {
         return DrawerHeader(
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [
-                theme.primaryColor,
-                theme.primaryColorDark ?? theme.primaryColor,
-              ],
+              colors: [theme.primaryColor, theme.primaryColorDark],
             ),
           ),
           child: Column(
