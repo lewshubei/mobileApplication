@@ -7,7 +7,11 @@ import 'package:sentimo/screens/login_screen.dart';
 import 'package:sentimo/screens/profile_screen.dart';
 
 class HomeScreen extends StatelessWidget {
+<<<<<<< HEAD
   const HomeScreen({Key? key}) : super(key: key);
+=======
+  const HomeScreen({super.key});
+>>>>>>> 1fafbdee2eb3e97ce0b5945aa92cd4dbf0759bba
   Future<void> _signOut(BuildContext context) async {
     await FirebaseAuth.instance.signOut();
     if (context.mounted) {

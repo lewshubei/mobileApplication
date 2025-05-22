@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sentimo/models/user_role.dart';
 import 'package:sentimo/screens/home_screen.dart';
+import 'package:sentimo/screens/counselor_home_screen.dart';
 import 'package:sentimo/screens/register_screen.dart';
+import 'package:sentimo/services/user_service.dart';
+import 'package:sentimo/screens/forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({Key? key}) : super(key: key);
+  const LoginScreen({super.key});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -17,6 +21,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _isLoading = false;
   String _errorMessage = '';
+  final UserService _userService = UserService();
 
   @override
   void dispose() {
@@ -33,16 +38,22 @@ class _LoginScreenState extends State<LoginScreen> {
       });
 
       try {
-        await FirebaseAuth.instance.signInWithEmailAndPassword(
-          email: _emailController.text.trim(),
-          password: _passwordController.text,
-        );
+        // Sign in with email and password
+        final UserCredential userCredential = await FirebaseAuth.instance
+            .signInWithEmailAndPassword(
+              email: _emailController.text.trim(),
+              password: _passwordController.text,
+            );
 
         if (!mounted) return;
 
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
+        // Fetch the role of the user from Firestore
+        final fetchedRole = await _userService.getUserRole(
+          userCredential.user!.uid,
         );
+
+        // Navigate based on role
+        _navigateBasedOnRole(fetchedRole ?? UserRole.student);
       } on FirebaseAuthException catch (e) {
         setState(() {
           _errorMessage = e.message ?? 'An error occurred during login';
@@ -96,24 +107,20 @@ class _LoginScreenState extends State<LoginScreen> {
       final UserCredential userCredential = await FirebaseAuth.instance
           .signInWithCredential(credential);
 
-      // Debug print to verify user is signed in
-      print("Google Sign-In successful: ${userCredential.user?.displayName}");
-
       if (!mounted) return;
 
-      // Ensure we're on the main thread for navigation
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
-        );
-      });
+      // Fetch the role of the user from Firestore
+      final fetchedRole = await _userService.getUserRole(
+        userCredential.user!.uid,
+      );
+
+      // Navigate based on role
+      _navigateBasedOnRole(fetchedRole ?? UserRole.student);
     } on FirebaseAuthException catch (e) {
-      print("Firebase Auth Exception: ${e.message}");
       setState(() {
         _errorMessage = e.message ?? 'An error occurred during Google sign-in';
       });
     } catch (e) {
-      print("Unexpected error during Google Sign-In: $e");
       setState(() {
         _errorMessage = 'An unexpected error occurred: $e';
       });
@@ -124,6 +131,20 @@ class _LoginScreenState extends State<LoginScreen> {
         });
       }
     }
+  }
+
+  void _navigateBasedOnRole(UserRole role) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (role == UserRole.counselor) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const CounselorHomeScreen()),
+        );
+      } else {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+        );
+      }
+    });
   }
 
   @override
@@ -140,8 +161,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 // Logo and App Name
                 Column(
                   children: [
-                    Image.asset('assets/images/logo.png', height: 200),
-
+                    Image.asset('assets/images/logo.png', height: 180),
+                    const SizedBox(height: 8),
                     Text(
                       'Track your mood, understand yourself',
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
@@ -152,7 +173,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ],
                 ),
 
-                const SizedBox(height: 48),
+                const SizedBox(height: 32),
 
                 // Login Form
                 Form(
@@ -206,7 +227,13 @@ class _LoginScreenState extends State<LoginScreen> {
                         alignment: Alignment.centerRight,
                         child: TextButton(
                           onPressed: () {
-                            // TODO: Implement forgot password functionality
+                            // Navigate to ForgotPasswordScreen
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder:
+                                    (context) => const ForgotPasswordScreen(),
+                              ),
+                            );
                           },
                           child: Text(
                             'Forgot Password?',
@@ -250,53 +277,74 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(height: 16),
 
                       // OR Divider
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Divider(
-                              color: Colors.grey.shade400,
-                              thickness: 1,
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: Text(
-                              'OR',
-                              style: TextStyle(
-                                color: Colors.grey.shade600,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: Divider(
-                              color: Colors.grey.shade400,
-                              thickness: 1,
-                            ),
-                          ),
-                        ],
-                      ),
+                      // Row(
+                      //   children: [
+                      //     Expanded(
+                      //       child: Divider(
+                      //         color: Colors.grey.shade400,
+                      //         thickness: 1,
+                      //       ),
+                      //     ),
+                      //     Padding(
+                      //       padding: const EdgeInsets.symmetric(horizontal: 16),
+                      //       child: Text(
+                      //         'OR',
+                      //         style: TextStyle(
+                      //           color: Colors.grey.shade600,
+                      //           fontWeight: FontWeight.w500,
+                      //         ),
+                      //       ),
+                      //     ),
+                      //     Expanded(
+                      //       child: Divider(
+                      //         color: Colors.grey.shade400,
+                      //         thickness: 1,
+                      //       ),
+                      //     ),
+                      //   ],
+                      // ),
 
-                      const SizedBox(height: 16),
+                      // const SizedBox(height: 16),
 
-                      // Google Sign-In Button
-                      OutlinedButton.icon(
-                        onPressed: _isLoading ? null : _signInWithGoogle,
-                        icon: Image.network(
-                          'https://developers.google.com/identity/images/g-logo.png',
-                          height: 24,
-                        ),
-                        label: const Text('Sign in with Google'),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          side: BorderSide(color: Colors.grey.shade300),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
+                      // // Google Sign-In Button
+                      // OutlinedButton.icon(
+                      //   onPressed: _isLoading ? null : _signInWithGoogle,
+                      //   icon: Image.network(
+                      //     'https://developers.google.com/identity/images/g-logo.png',
+                      //     height: 24,
+                      //     errorBuilder: (context, error, stackTrace) {
+                      //       // Fallback if image fails to load
+                      //       return Container(
+                      //         height: 24,
+                      //         width: 24,
+                      //         decoration: const BoxDecoration(
+                      //           color: Colors.white,
+                      //           shape: BoxShape.circle,
+                      //         ),
+                      //         child: Center(
+                      //           child: Text(
+                      //             "G",
+                      //             style: TextStyle(
+                      //               color: Colors.red.shade600,
+                      //               fontSize: 16,
+                      //               fontWeight: FontWeight.bold,
+                      //             ),
+                      //           ),
+                      //         ),
+                      //       );
+                      //     },
+                      //   ),
+                      //   label: const Text('Sign in with Google'),
+                      //   style: OutlinedButton.styleFrom(
+                      //     padding: const EdgeInsets.symmetric(vertical: 16),
+                      //     side: BorderSide(color: Colors.grey.shade300),
+                      //     shape: RoundedRectangleBorder(
+                      //       borderRadius: BorderRadius.circular(12),
+                      //     ),
+                      //   ),
+                      // ),
 
-                      const SizedBox(height: 24),
+                      // const SizedBox(height: 24),
 
                       // Register Option
                       Row(
