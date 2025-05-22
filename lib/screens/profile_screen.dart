@@ -10,11 +10,7 @@ import 'package:sentimo/providers/user_provider.dart';
 import 'package:sentimo/services/cloudinary_service.dart';
 
 class ProfileScreen extends StatefulWidget {
-<<<<<<< HEAD
-  const ProfileScreen({Key? key}) : super(key: key);
-=======
   const ProfileScreen({super.key});
->>>>>>> 1fafbdee2eb3e97ce0b5945aa92cd4dbf0759bba
 
   @override
   _ProfileScreenState createState() => _ProfileScreenState();
