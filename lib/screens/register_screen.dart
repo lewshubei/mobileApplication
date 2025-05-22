@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
+import 'package:sentimo/providers/user_provider.dart';
 import 'package:sentimo/screens/home_screen.dart';
 import 'package:sentimo/screens/counselor_home_screen.dart';
 
@@ -115,6 +117,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
               email: _emailController.text.trim(),
               password: _passwordController.text.trim(),
             );
+
+        // Update user provider with the logged-in user
+        final userProvider = Provider.of<UserProvider>(context, listen: false);
+        userProvider.setUser(userCredential.user);
 
         // Save role to Firestore
         await FirebaseFirestore.instance

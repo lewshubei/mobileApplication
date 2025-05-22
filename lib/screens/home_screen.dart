@@ -69,59 +69,44 @@ class HomeScreen extends StatelessWidget {
   }
 
   Widget _buildDrawerHeader(User? user, ThemeData theme) {
-    return Consumer<UserProvider>(
-      builder: (context, userProvider, _) {
-        final currentUser = userProvider.user ?? user;
-        // print('Avatar URL: ${userProvider.avatarUrl}');
-        // print('Photo URL: ${user?.photoURL}');
-        return DrawerHeader(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                theme.primaryColor,
-                theme.primaryColorDark ?? theme.primaryColor,
-              ],
-            ),
+    return DrawerHeader(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            theme.primaryColor,
+            theme.primaryColorDark ?? theme.primaryColor,
+          ],
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          CircleAvatar(
+            radius: 32,
+            backgroundColor: Colors.white.withOpacity(0.3),
+            backgroundImage:
+                user?.photoURL != null ? NetworkImage(user!.photoURL!) : null,
+            onBackgroundImageError:
+                user?.photoURL != null
+                    ? (e, _) => print("Image load error: $e")
+                    : null,
+            child:
+                user?.photoURL == null
+                    ? const Icon(Icons.person, size: 36, color: Colors.white)
+                    : null,
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              CircleAvatar(
-                radius: 32,
-                backgroundColor: Colors.white.withOpacity(0.3),
-                backgroundImage:
-                    userProvider.avatarUrl != null
-                        ? NetworkImage(userProvider.avatarUrl!)
-                        : (user?.photoURL != null
-                            ? NetworkImage(user!.photoURL!)
-                            : null),
-                onBackgroundImageError:
-                    userProvider.avatarUrl != null || user?.photoURL != null
-                        ? (e, _) => print("Image load error: $e")
-                        : null,
-                child:
-                    userProvider.avatarUrl == null && user?.photoURL == null
-                        ? Icon(Icons.person, size: 36, color: Colors.white)
-                        : null,
-              ),
-              const SizedBox(height: 12),
-              Text(
-                currentUser?.displayName ?? 'User',
-                style: theme.textTheme.titleLarge?.copyWith(
-                  color: Colors.white,
-                ),
-              ),
-              Text(
-                currentUser?.email ?? 'Not logged in',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: Colors.white70,
-                ),
-              ),
-            ],
+          const SizedBox(height: 12),
+          Text(
+            user?.displayName ?? 'User',
+            style: theme.textTheme.titleLarge?.copyWith(color: Colors.white),
           ),
-        );
-      },
+          Text(
+            user?.email ?? 'Not logged in',
+            style: theme.textTheme.bodySmall?.copyWith(color: Colors.white70),
+          ),
+        ],
+      ),
     );
   }
 
