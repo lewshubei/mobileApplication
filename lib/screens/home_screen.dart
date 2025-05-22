@@ -23,7 +23,7 @@ class HomeScreen extends StatelessWidget {
     final user = userProvider.user ?? FirebaseAuth.instance.currentUser;
     final theme = Theme.of(context);
 
-    print('User: ${user?.email}');
+    print('User: ${user?.phoneNumber}');
     return Scaffold(
       appBar: AppBar(
         title: const Text('Sentimo'),
