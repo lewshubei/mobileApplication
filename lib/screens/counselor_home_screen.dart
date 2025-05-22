@@ -24,6 +24,7 @@ class CounselorHomeScreen extends StatelessWidget {
     final user = userProvider.user ?? FirebaseAuth.instance.currentUser;
     final theme = Theme.of(context);
 
+    print('User: ${user?.email}');
     return Scaffold(
       appBar: AppBar(
         title: const Text('Counselor Dashboard'),

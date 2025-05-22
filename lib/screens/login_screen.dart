@@ -7,6 +7,8 @@ import 'package:sentimo/screens/counselor_home_screen.dart';
 import 'package:sentimo/screens/register_screen.dart';
 import 'package:sentimo/services/user_service.dart';
 import 'package:sentimo/screens/forgot_password_screen.dart';
+import 'package:provider/provider.dart';
+import 'package:sentimo/providers/user_provider.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -46,6 +48,10 @@ class _LoginScreenState extends State<LoginScreen> {
             );
 
         if (!mounted) return;
+
+        // Update user provider with the logged-in user
+        final userProvider = Provider.of<UserProvider>(context, listen: false);
+        userProvider.setUser(userCredential.user);
 
         // Fetch the role of the user from Firestore
         final fetchedRole = await _userService.getUserRole(

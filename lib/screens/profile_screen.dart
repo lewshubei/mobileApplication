@@ -22,8 +22,51 @@ class _ProfileScreenState extends State<ProfileScreen> {
   late TextEditingController _nameController;
   late TextEditingController _phoneController;
   String? _avatarUrl;
+  String? _currentUserId;
 
   FilePickerResult? _filePickerResult;
+
+  @override
+  void initState() {
+    super.initState();
+    final user = FirebaseAuth.instance.currentUser;
+    _nameController = TextEditingController(text: user?.displayName ?? '');
+    _phoneController = TextEditingController(text: user?.phoneNumber ?? '');
+    _currentUserId = user?.uid;
+    _loadAvatarFromFirestore();
+
+    FirebaseAuth.instance.authStateChanges().listen((User? user) {
+      if (user != null && mounted) {
+        setState(() {
+          _nameController.text = user.displayName ?? '';
+          _phoneController.text = user.phoneNumber ?? '';
+          _currentUserId = user.uid;
+        });
+        _loadAvatarFromFirestore();
+      }
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final userProvider = Provider.of<UserProvider>(context);
+    final currentUser = userProvider.user ?? FirebaseAuth.instance.currentUser;
+
+    if (currentUser?.uid != _currentUserId) {
+      _nameController.text = currentUser?.displayName ?? '';
+      _phoneController.text = currentUser?.phoneNumber ?? '';
+      _currentUserId = currentUser?.uid;
+      _loadAvatarFromFirestore();
+    }
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _phoneController.dispose();
+    super.dispose();
+  }
 
   void _openFilePicker() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
@@ -34,15 +77,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() {
       _filePickerResult = result;
     });
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    final user = FirebaseAuth.instance.currentUser;
-    _nameController = TextEditingController(text: user?.displayName ?? '');
-    _phoneController = TextEditingController(text: user?.phoneNumber ?? '');
-    _loadAvatarFromFirestore();
   }
 
   Future<void> _loadAvatarFromFirestore() async {
@@ -56,7 +90,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               .doc(user.uid)
               .get();
 
-      if (doc.exists) {
+      if (doc.exists && mounted) {
         setState(() {
           _avatarUrl = doc.data()?['avatarUrl'];
           _phoneController.text =
@@ -107,7 +141,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
       await userProvider.updateAvatar(imageUrl);
-
       await userProvider.refreshUser();
 
       setState(() {
@@ -366,33 +399,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildUserInfoCard(User? user, ThemeData theme) {
-    return Consumer<UserProvider>(
-      builder: (context, userProvider, _) {
-        final currentUser = userProvider.user ?? user;
-        return Card(
-          elevation: 4,
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              children: [
-                _buildInfoRow(
-                  Icons.person,
-                  'Name',
-                  currentUser?.displayName ?? '-',
-                ),
-                const Divider(height: 30),
-                _buildInfoRow(Icons.email, 'Email', user?.email ?? '-'),
-                const Divider(height: 30),
-                _buildInfoRow(
-                  Icons.phone,
-                  'Phone Number',
-                  userProvider.phoneNumber ?? '-',
-                ),
-              ],
+    final userProvider = Provider.of<UserProvider>(context);
+    final currentUser = userProvider.user ?? FirebaseAuth.instance.currentUser;
+
+    return Card(
+      elevation: 4,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            _buildInfoRow(
+              Icons.person,
+              'Name',
+              currentUser?.displayName ?? '-',
             ),
-          ),
-        );
-      },
+            const Divider(height: 30),
+            _buildInfoRow(Icons.email, 'Email', currentUser?.email ?? '-'),
+            const Divider(height: 30),
+            _buildInfoRow(
+              Icons.phone,
+              'Phone Number',
+              currentUser?.phoneNumber ?? userProvider.phoneNumber ?? '-',
+            ),
+          ],
+        ),
+      ),
     );
   }
 
