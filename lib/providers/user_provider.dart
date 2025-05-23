@@ -11,6 +11,11 @@ class UserProvider extends ChangeNotifier {
   String? get avatarUrl => _avatarUrl;
   String? get phoneNumber => _phoneNumber;
 
+  void setUser(User? user) {
+    _user = user;
+    notifyListeners();
+  }
+
   void updateUser(User? user) {
     _user = user;
     _avatarUrl = user?.photoURL;
@@ -55,7 +60,7 @@ class UserProvider extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       print('Error updating avatar: $e');
-      rethrow;
+      throw e;
     }
   }
 

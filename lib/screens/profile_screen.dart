@@ -21,8 +21,51 @@ class _ProfileScreenState extends State<ProfileScreen> {
   late TextEditingController _nameController;
   late TextEditingController _phoneController;
   String? _avatarUrl;
+  String? _currentUserId;
 
   FilePickerResult? _filePickerResult;
+
+  @override
+  void initState() {
+    super.initState();
+    final user = FirebaseAuth.instance.currentUser;
+    _nameController = TextEditingController(text: user?.displayName ?? '');
+    _phoneController = TextEditingController(text: user?.phoneNumber ?? '');
+    _currentUserId = user?.uid;
+    _loadAvatarFromFirestore();
+
+    FirebaseAuth.instance.authStateChanges().listen((User? user) {
+      if (user != null && mounted) {
+        setState(() {
+          _nameController.text = user.displayName ?? '';
+          _phoneController.text = user.phoneNumber ?? '';
+          _currentUserId = user.uid;
+        });
+        _loadAvatarFromFirestore();
+      }
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final userProvider = Provider.of<UserProvider>(context);
+    final currentUser = userProvider.user ?? FirebaseAuth.instance.currentUser;
+
+    if (currentUser?.uid != _currentUserId) {
+      _nameController.text = currentUser?.displayName ?? '';
+      _phoneController.text = currentUser?.phoneNumber ?? '';
+      _currentUserId = currentUser?.uid;
+      _loadAvatarFromFirestore();
+    }
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _phoneController.dispose();
+    super.dispose();
+  }
 
   void _openFilePicker() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
@@ -33,15 +76,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() {
       _filePickerResult = result;
     });
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    final user = FirebaseAuth.instance.currentUser;
-    _nameController = TextEditingController(text: user?.displayName ?? '');
-    _phoneController = TextEditingController(text: user?.phoneNumber ?? '');
-    _loadAvatarFromFirestore();
   }
 
   Future<void> _loadAvatarFromFirestore() async {
@@ -55,11 +89,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
               .doc(user.uid)
               .get();
 
-      if (doc.exists) {
+      if (mounted) {
+        final data = doc.data();
+        final firestoreAvatar = data?['avatarUrl'];
+        final fallbackPhotoURL = user.photoURL;
+
         setState(() {
-          _avatarUrl = doc.data()?['avatarUrl'];
+          _avatarUrl = firestoreAvatar ?? fallbackPhotoURL;
           _phoneController.text =
-              doc.data()?['phoneNumber'] ?? user.phoneNumber ?? '';
+              data?['phoneNumber'] ?? user.phoneNumber ?? '';
         });
       }
     } catch (e) {
@@ -101,12 +139,49 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  Future<void> _removeAvatar() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    setState(() {
+      _avatarUrl = null;
+      _isSaving = true;
+    });
+
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).update(
+        {'avatarUrl': FieldValue.delete()},
+      );
+
+      await user.updatePhotoURL(null);
+
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      await userProvider.refreshUser();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile picture removed successfully')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to remove profile picture: $e')),
+      );
+    } finally {
+      setState(() => _isSaving = false);
+    }
+  }
+
   Future<void> _saveAvatarToFirestore(String imageUrl) async {
     setState(() => _isSaving = true);
     try {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
-      await userProvider.updateAvatar(imageUrl);
 
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await user.updatePhotoURL(imageUrl);
+        await user.reload();
+      }
+
+      await userProvider.updateAvatar(imageUrl);
       await userProvider.refreshUser();
 
       setState(() {
@@ -153,7 +228,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  void _showAvatarOptions(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.edit),
+                title: const Text('Edit Photo'),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _pickImage();
+                },
+              ),
+              if (_avatarUrl != null)
+                ListTile(
+                  leading: const Icon(Icons.delete),
+                  title: const Text('Remove Photo'),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    _removeAvatar();
+                  },
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildProfileCard(BuildContext context, User? user, bool isDarkMode) {
+    print('_avatarUrl: $_avatarUrl');
+
     return Container(
       width: 150,
       height: 150,
@@ -200,7 +312,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               right: 0,
               bottom: 0,
               child: GestureDetector(
-                onTap: _pickImage,
+                onTap: () {
+                  _showAvatarOptions(context);
+                },
                 child: Container(
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
@@ -216,6 +330,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
             ),
+          // if (_isEditing && _avatarUrl != null)
+          //   Positioned(
+          //     right: 15,
+          //     top: 0,
+          //     child: GestureDetector(
+          //       onTap: _removeAvatar,
+          //       child: Container(
+          //         padding: const EdgeInsets.all(4),
+          //         decoration: BoxDecoration(
+          //           color: Colors.red.shade600,
+          //           shape: BoxShape.circle,
+          //           border: Border.all(color: Colors.white, width: 1.5),
+          //         ),
+          //         child: const Icon(
+          //           Icons.close_rounded,
+          //           size: 16,
+          //           color: Colors.white,
+          //         ),
+          //       ),
+          //     ),
+          //   ),
         ],
       ),
     );
@@ -365,33 +500,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildUserInfoCard(User? user, ThemeData theme) {
-    return Consumer<UserProvider>(
-      builder: (context, userProvider, _) {
-        final currentUser = userProvider.user ?? user;
-        return Card(
-          elevation: 4,
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              children: [
-                _buildInfoRow(
-                  Icons.person,
-                  'Name',
-                  currentUser?.displayName ?? '-',
-                ),
-                const Divider(height: 30),
-                _buildInfoRow(Icons.email, 'Email', user?.email ?? '-'),
-                const Divider(height: 30),
-                _buildInfoRow(
-                  Icons.phone,
-                  'Phone Number',
-                  userProvider.phoneNumber ?? '-',
-                ),
-              ],
+    final userProvider = Provider.of<UserProvider>(context);
+    final currentUser = userProvider.user ?? FirebaseAuth.instance.currentUser;
+
+    return Card(
+      elevation: 4,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            _buildInfoRow(
+              Icons.person,
+              'Name',
+              currentUser?.displayName ?? '-',
             ),
-          ),
-        );
-      },
+            const Divider(height: 30),
+            _buildInfoRow(Icons.email, 'Email', currentUser?.email ?? '-'),
+            const Divider(height: 30),
+            _buildInfoRow(
+              Icons.phone,
+              'Phone Number',
+              currentUser?.phoneNumber ?? userProvider.phoneNumber ?? '-',
+            ),
+          ],
+        ),
+      ),
     );
   }
 
