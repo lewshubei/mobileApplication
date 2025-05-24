@@ -19,7 +19,7 @@ class _HomeScreenState extends State<HomeScreen> {
   DateTime _currentMonth = DateTime.now();
 
   // Store mood data (in real app, this would come from database)
-  Map<String, Map<String, dynamic>> _moodData = {};
+  final Map<String, Map<String, dynamic>> _moodData = {};
 
   Future<void> _signOut(BuildContext context) async {
     await FirebaseAuth.instance.signOut();

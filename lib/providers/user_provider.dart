@@ -60,7 +60,7 @@ class UserProvider extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       print('Error updating avatar: $e');
-      throw e;
+      rethrow;
     }
   }
 
