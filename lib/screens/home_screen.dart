@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:sentimo/providers/user_provider.dart';
 import 'package:sentimo/screens/profile_screen.dart';
 import 'package:sentimo/screens/login_screen.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -17,9 +18,103 @@ class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   final PageController _pageController = PageController();
   DateTime _currentMonth = DateTime.now();
+  bool _isLoadingMoodData = false;
 
-  // Store mood data (in real app, this would come from database)
-  final Map<String, Map<String, dynamic>> _moodData = {};
+  // Store mood data (now will be synced with Firebase)
+  Map<String, Map<String, dynamic>> _moodData = {};
+
+  // Add these methods for Firebase operations
+  Future<void> _loadMoodDataFromFirebase() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      print('No user logged in, cannot load mood data');
+      return;
+    }
+
+    setState(() {
+      _isLoadingMoodData = true;
+    });
+
+    try {
+      print('Loading mood data for user: ${user.uid}');
+
+      final querySnapshot =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .collection('moods')
+              .get();
+
+      print('Found ${querySnapshot.docs.length} mood entries');
+
+      setState(() {
+        _moodData.clear();
+        for (var doc in querySnapshot.docs) {
+          final data = doc.data();
+          print('Loading mood: ${doc.id} -> ${data}');
+          _moodData[doc.id] = {
+            'moodIndex': data['moodIndex'],
+            'date': (data['date'] as Timestamp).toDate(),
+          };
+        }
+        _isLoadingMoodData = false;
+      });
+
+      print('Loaded ${_moodData.length} mood entries into local storage');
+    } catch (e) {
+      print('Error loading mood data: $e');
+      setState(() {
+        _isLoadingMoodData = false;
+      });
+
+      // Show error to user
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to load mood data: $e')));
+      }
+    }
+  }
+
+  Future<void> _saveMoodToFirebase(
+    String moodKey,
+    int moodIndex,
+    DateTime date,
+  ) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      print('No user logged in, cannot save mood data');
+      return;
+    }
+
+    try {
+      print(
+        'Saving mood to Firebase: $moodKey -> moodIndex: $moodIndex, date: $date',
+      );
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('moods')
+          .doc(moodKey)
+          .set({
+            'moodIndex': moodIndex,
+            'date': Timestamp.fromDate(date),
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+
+      print('Successfully saved mood to Firebase');
+    } catch (e) {
+      print('Error saving mood data: $e');
+
+      // Show error to user
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to save mood: $e')));
+      }
+    }
+  }
 
   Future<void> _signOut(BuildContext context) async {
     await FirebaseAuth.instance.signOut();
@@ -28,6 +123,15 @@ class _HomeScreenState extends State<HomeScreen> {
         MaterialPageRoute(builder: (context) => const LoginScreen()),
       );
     }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // Add a small delay to ensure Firebase Auth is ready
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadMoodDataFromFirebase();
+    });
   }
 
   @override
@@ -150,6 +254,16 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
               ),
 
+              // Debug option to reload data
+              ListTile(
+                leading: const Icon(Icons.refresh),
+                title: const Text('Reload Mood Data'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _loadMoodDataFromFirebase();
+                },
+              ),
+
               // Logout option
               ListTile(
                 leading: Icon(Icons.logout, color: Colors.red.shade400),
@@ -248,7 +362,19 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Sentimo'),
+        title: Row(
+          children: [
+            const Text('Sentimo'),
+            if (_isLoadingMoodData) ...[
+              const SizedBox(width: 10),
+              const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ],
+          ],
+        ),
         elevation: 0,
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.black87,
@@ -423,19 +549,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
               final moodKey = _getMoodKey(currentDate);
               final hasMood = _moodData.containsKey(moodKey);
-
-              // Generate a random mood index for demonstration
-              final randomMoodIndex = (day * 17) % 5;
-
-              // For demo purposes, let's say days before today have moods
-              final hasRandomMood = day < today.day && day > today.day - 15;
-
-              if (hasRandomMood && !hasMood && day < 30) {
-                _moodData[moodKey] = {
-                  'moodIndex': randomMoodIndex,
-                  'date': currentDate,
-                };
-              }
 
               return GestureDetector(
                 onTap: () {
@@ -663,8 +776,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: () {
-                            // Save mood data
+                          onPressed: () async {
+                            // Save mood data locally first
                             setState(() {
                               _moodData[moodKey] = {
                                 'moodIndex': selectedMoodIndex,
@@ -674,7 +787,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                             Navigator.pop(context);
 
-                            // Show confirmation
+                            // Show immediate confirmation
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text(
@@ -683,6 +796,13 @@ class _HomeScreenState extends State<HomeScreen> {
                                 backgroundColor: Colors.green,
                                 duration: const Duration(seconds: 2),
                               ),
+                            );
+
+                            // Save to Firebase in background
+                            await _saveMoodToFirebase(
+                              moodKey,
+                              selectedMoodIndex,
+                              selectedDate,
                             );
                           },
                           style: ElevatedButton.styleFrom(
