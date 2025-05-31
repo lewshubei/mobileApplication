@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 import 'package:sentimo/screens/login_screen.dart';
 import 'package:sentimo/screens/profile_screen.dart';
 import 'package:sentimo/providers/user_provider.dart';
@@ -47,6 +48,7 @@ class CounselorHomeScreen extends StatelessWidget {
           onPressed: () {
             // TODO: Implement action to view all students
           },
+          tooltip: 'View all students',
           child: const Icon(Icons.people),
         ),
       ),
@@ -54,149 +56,433 @@ class CounselorHomeScreen extends StatelessWidget {
   }
   
   Widget _buildDashboardTab(BuildContext context) {
-    // Dashboard content unchanged
     return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Welcome section
-            Card(
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Padding(
+      child: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance.collection('users').snapshots(),
+        builder: (context, usersSnapshot) {
+          return StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('user_assessments')
+                .where('shared_with_counselor', isEqualTo: true)
+                .snapshots(),
+            builder: (context, assessmentsSnapshot) {
+              // Calculate dashboard stats
+              int studentCount = 0;
+              int alertCount = 0;
+              double avgMood = 0;
+              int reportCount = 0;
+              List<Map<String, dynamic>> recentActivities = [];
+              
+              // Process users data if available
+              if (usersSnapshot.hasData) {
+                studentCount = usersSnapshot.data!.docs
+                    .where((doc) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      return data['role'] == 'student';
+                    }).length;
+              }
+              
+              // Process assessments data if available
+              if (assessmentsSnapshot.hasData) {
+                final assessments = assessmentsSnapshot.data!.docs;
+                reportCount = assessments.length;
+                
+                // Calculate alerts (assessments with concerning answers)
+                alertCount = assessments.where((doc) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  final List<dynamic> answers = data['answers'] ?? [];
+                  // Count as alert if any answer is "bad", "never", or "not at all"
+                  return answers.any((answer) {
+                    final String answerText = answer['answer']?.toString().toLowerCase() ?? '';
+                    return answerText == 'bad' || 
+                           answerText == 'never' || 
+                           answerText == 'not at all';
+                  });
+                }).length;
+                
+                // Calculate average mood (simplified example)
+                double moodSum = 0;
+                int moodCount = 0;
+                
+                for (var doc in assessments) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  final List<dynamic> answers = data['answers'] ?? [];
+                  
+                  // Look for mood-related questions and assign numerical values
+                  for (var answer in answers) {
+                    final String question = answer['question']?.toString().toLowerCase() ?? '';
+                    final String answerText = answer['answer']?.toString().toLowerCase() ?? '';
+                    
+                    if (question.contains('mood') || question.contains('feel')) {
+                      double score = 5.0; // Default middle score
+                      
+                      if (answerText == 'bad' || answerText == 'never' || answerText == 'not at all') {
+                        score = 2.0;
+                      } else if (answerText == 'rarely') {
+                        score = 4.0;
+                      } else if (answerText == 'sometimes') {
+                        score = 6.0;
+                      } else if (answerText == 'often') {
+                        score = 8.0;
+                      } else if (answerText == 'always' || answerText == 'excellent') {
+                        score = 10.0;
+                      }
+                      
+                      moodSum += score;
+                      moodCount++;
+                    }
+                  }
+                }
+                
+                if (moodCount > 0) {
+                  avgMood = moodSum / moodCount;
+                }
+                
+                // Get recent activities
+                final sortedAssessments = List<DocumentSnapshot>.from(assessments);
+                sortedAssessments.sort((a, b) {
+                  final aData = a.data() as Map<String, dynamic>;
+                  final bData = b.data() as Map<String, dynamic>;
+                  final aTime = aData['timestamp'] as Timestamp;
+                  final bTime = bData['timestamp'] as Timestamp;
+                  return bTime.compareTo(aTime);
+                });
+                
+                for (int i = 0; i < min(sortedAssessments.length, 5); i++) {
+                  final data = sortedAssessments[i].data() as Map<String, dynamic>;
+                  final List<dynamic> answers = data['answers'] ?? [];
+                  final Timestamp timestamp = data['timestamp'] as Timestamp;
+                  final String userId = data['userId'] as String;
+                  
+                  // Check if it's an alert
+                  bool isAlert = answers.any((answer) {
+                    final String answerText = answer['answer']?.toString().toLowerCase() ?? '';
+                    return answerText == 'bad' || 
+                           answerText == 'never' || 
+                           answerText == 'not at all';
+                  });
+                  
+                  recentActivities.add({
+                    'userId': userId,
+                    'type': 'assessment',
+                    'timestamp': timestamp,
+                    'isAlert': isAlert,
+                  });
+                }
+              }
+              
+              return SingleChildScrollView(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Welcome, Counselor',
-                      style: Theme.of(context).textTheme.headlineSmall,
+                    // Welcome section
+                    Card(
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Welcome, Counselor',
+                              style: Theme.of(context).textTheme.headlineSmall,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              Provider.of<UserProvider>(context).user?.displayName ?? 
+                              FirebaseAuth.instance.currentUser?.displayName ?? 
+                              FirebaseAuth.instance.currentUser?.email ?? 
+                              'User',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            const SizedBox(height: 16),
+                            const Text(
+                              'You can view and manage student mood data from this dashboard.',
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                    const SizedBox(height: 8),
+                    
+                    const SizedBox(height: 24),
+                    
+                    // Stats overview
+                    Text('Overview', style: Theme.of(context).textTheme.titleLarge),
+                    const SizedBox(height: 16),
+                    
+                    // Stats cards
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildStatCard(
+                            context,
+                            'Students',
+                            studentCount.toString(),
+                            Icons.people,
+                            Colors.blue,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: _buildStatCard(
+                            context,
+                            'Alerts',
+                            alertCount.toString(),
+                            Icons.warning_amber,
+                            Colors.orange,
+                          ),
+                        ),
+                      ],
+                    ),
+                    
+                    const SizedBox(height: 16),
+                    
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildStatCard(
+                            context,
+                            'Avg. Mood',
+                            avgMood.toStringAsFixed(1),
+                            Icons.mood,
+                            Colors.green,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: _buildStatCard(
+                            context,
+                            'Reports',
+                            reportCount.toString(),
+                            Icons.assessment,
+                            Colors.purple,
+                          ),
+                        ),
+                      ],
+                    ),
+                    
+                    const SizedBox(height: 24),
+                    
+                    // Recent activity
                     Text(
-                      Provider.of<UserProvider>(context).user?.displayName ?? 
-                      FirebaseAuth.instance.currentUser?.displayName ?? 
-                      FirebaseAuth.instance.currentUser?.email ?? 
-                      'User',
-                      style: Theme.of(context).textTheme.titleMedium,
+                      'Recent Activity',
+                      style: Theme.of(context).textTheme.titleLarge,
                     ),
                     const SizedBox(height: 16),
-                    const Text(
-                      'You can view and manage student mood data from this dashboard.',
-                    ),
+                    
+                    // Show loading indicator if data is still loading
+                    if (usersSnapshot.connectionState == ConnectionState.waiting || 
+                        assessmentsSnapshot.connectionState == ConnectionState.waiting)
+                      const Center(child: CircularProgressIndicator()),
+                      
+                    // Show error if any
+                    if (usersSnapshot.hasError || assessmentsSnapshot.hasError)
+                      Card(
+                        color: Colors.red.shade50,
+                        margin: const EdgeInsets.only(bottom: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Text('Error loading data: ${usersSnapshot.error ?? assessmentsSnapshot.error}'),
+                        ),
+                      ),
+                      
+                    // Show no activities message if needed
+                    if (recentActivities.isEmpty && 
+                        !(usersSnapshot.connectionState == ConnectionState.waiting) && 
+                        !(assessmentsSnapshot.connectionState == ConnectionState.waiting))
+                      Card(
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        child: const Padding(
+                          padding: EdgeInsets.all(16.0),
+                          child: Text('No recent activity to display'),
+                        ),
+                      ),
+                      
+                    // List of recent activities
+                    ...recentActivities.map((activity) {
+                      return _buildActivityCard(context, activity);
+                    }).toList(),
+                    
+                    // Add extra space at bottom to prevent FAB overlap
+                    const SizedBox(height: 80),
                   ],
                 ),
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Stats overview
-            Text('Overview', style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 16),
-
-            // Stats cards
-            Row(
-              children: [
-                Expanded(
-                  child: _buildStatCard(
-                    context,
-                    'Students',
-                    '24',
-                    Icons.people,
-                    Colors.blue,
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+  
+  Widget _buildActivityCard(BuildContext context, Map<String, dynamic> activity) {
+    return FutureBuilder<DocumentSnapshot>(
+      future: FirebaseFirestore.instance.collection('users').doc(activity['userId']).get(),
+      builder: (context, userSnapshot) {
+        String name = 'Student';
+        if (userSnapshot.hasData) {
+          final userData = userSnapshot.data!.data() as Map<String, dynamic>?;
+          name = userData?['displayName'] ?? 'Student';
+        }
+        
+        final timestamp = activity['timestamp'] as Timestamp;
+        final now = DateTime.now();
+        final assessmentTime = timestamp.toDate();
+        final difference = now.difference(assessmentTime);
+        
+        String timeAgo;
+        if (difference.inMinutes < 1) {
+          timeAgo = 'just now';
+        } else if (difference.inHours < 1) {
+          timeAgo = '${difference.inMinutes} min ago';
+        } else if (difference.inDays < 1) {
+          timeAgo = '${difference.inHours} hr ago';
+        } else {
+          timeAgo = '${difference.inDays} day${difference.inDays == 1 ? '' : 's'} ago';
+        }
+        
+        final isAlert = activity['isAlert'] as bool;
+        
+        return Card(
+          elevation: 1,
+          surfaceTintColor: isAlert ? Colors.orange.shade50 : null,
+          clipBehavior: Clip.antiAlias,
+          margin: const EdgeInsets.only(bottom: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: isAlert
+                ? BorderSide(color: Colors.orange.shade300, width: 1)
+                : BorderSide.none,
+          ),
+          child: InkWell(
+            onTap: () {
+              // TODO: Navigate to assessment details
+            },
+            child: Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Row(
+                children: [
+                  // Avatar and status indicator
+                  Stack(
+                    children: [
+                      CircleAvatar(
+                        backgroundColor: Colors.teal.shade200,
+                        radius: 24,
+                        child: Text(
+                          name.isNotEmpty ? name.substring(0, 1) : 'S',
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                      if (isAlert)
+                        Positioned(
+                          right: 0,
+                          bottom: 0,
+                          child: Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.grey.withOpacity(0.3),
+                                  spreadRadius: 1,
+                                  blurRadius: 2,
+                                  offset: const Offset(0, 1),
+                                ),
+                              ],
+                            ),
+                            child: Icon(
+                              Icons.warning_rounded,
+                              size: 16,
+                              color: Colors.orange.shade700,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildStatCard(
-                    context,
-                    'Alerts',
-                    '3',
-                    Icons.warning_amber,
-                    Colors.orange,
+                  
+                  const SizedBox(width: 16),
+                  
+                  // Content
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            if (isAlert)
+                              Container(
+                                margin: const EdgeInsets.only(left: 8),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, 
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.orange.shade100,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  'Needs Attention',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.orange.shade900,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Submitted mental health assessment',
+                          style: TextStyle(color: Colors.grey.shade700),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 16),
-
-            Row(
-              children: [
-                Expanded(
-                  child: _buildStatCard(
-                    context,
-                    'Avg. Mood',
-                    '7.2',
-                    Icons.mood,
-                    Colors.green,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildStatCard(
-                    context,
-                    'Reports',
-                    '12',
-                    Icons.assessment,
-                    Colors.purple,
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 24),
-
-            // Recent activity
-            Text(
-              'Recent Activity',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 16),
-
-            Expanded(
-              child: ListView(
-                children: const [
-                  _ActivityItem(
-                    name: 'John Doe',
-                    action: 'logged mood',
-                    value: 'Sad (3/10)',
-                    time: '10 minutes ago',
-                    isAlert: true,
-                  ),
-                  _ActivityItem(
-                    name: 'Jane Smith',
-                    action: 'logged mood',
-                    value: 'Happy (8/10)',
-                    time: '25 minutes ago',
-                    isAlert: false,
-                  ),
-                  _ActivityItem(
-                    name: 'Mike Johnson',
-                    action: 'logged mood',
-                    value: 'Anxious (4/10)',
-                    time: '1 hour ago',
-                    isAlert: true,
-                  ),
-                  _ActivityItem(
-                    name: 'Sarah Williams',
-                    action: 'logged mood',
-                    value: 'Content (7/10)',
-                    time: '2 hours ago',
-                    isAlert: false,
+                  
+                  // Timestamp
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      timeAgo,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
                   ),
                 ],
               ),
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
+  }
+
+  int min(int a, int b) {
+    return a < b ? a : b;
   }
 
   Widget _buildAssessmentsTab(BuildContext context, User? user) {
@@ -332,7 +618,7 @@ class CounselorHomeScreen extends StatelessWidget {
             }
 
             return ListView.builder(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 80.0), // Extra bottom padding
               itemCount: assessments.length,
               itemBuilder: (context, index) {
                 try {
@@ -341,8 +627,16 @@ class CounselorHomeScreen extends StatelessWidget {
                   final DateTime timestamp = (assessment['timestamp'] as Timestamp).toDate();
                   final String userId = assessment['userId'] as String;
                   
+                  // Check if it's an alert (has concerning answers)
+                  bool isAlert = answers.any((answer) {
+                    final String answerText = answer['answer']?.toString().toLowerCase() ?? '';
+                    return answerText == 'bad' || 
+                           answerText == 'never' || 
+                           answerText == 'not at all';
+                  });
+                  
                   // Format timestamp to a readable string
-                  final String formattedDate = '${timestamp.day}/${timestamp.month}/${timestamp.year} ${timestamp.hour}:${timestamp.minute.toString().padLeft(2, '0')}';
+                  final String formattedDate = DateFormat('dd/MM/yyyy HH:mm').format(timestamp);
 
                   return Card(
                     elevation: 2,
@@ -351,6 +645,9 @@ class CounselorHomeScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: ExpansionTile(
+                      leading: isAlert 
+                          ? Icon(Icons.warning_rounded, color: Colors.orange.shade700)
+                          : null,
                       title: FutureBuilder<DocumentSnapshot>(
                         future: FirebaseFirestore.instance.collection('users').doc(userId).get(),
                         builder: (context, userSnapshot) {
@@ -474,7 +771,6 @@ class CounselorHomeScreen extends StatelessWidget {
     }
   }
 
-  // Rest of the code (buildStatCard, buildCustomDrawer, etc.) remains unchanged
   Widget _buildStatCard(
     BuildContext context,
     String title,
@@ -609,57 +905,5 @@ class CounselorHomeScreen extends StatelessWidget {
   void _navigateTo(BuildContext context, Widget page) {
     Navigator.pop(context);
     Navigator.push(context, MaterialPageRoute(builder: (_) => page));
-  }
-}
-
-class _ActivityItem extends StatelessWidget {
-  final String name;
-  final String action;
-  final String value;
-  final String time;
-  final bool isAlert;
-
-  const _ActivityItem({
-    required this.name,
-    required this.action,
-    required this.value,
-    required this.time,
-    required this.isAlert,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      elevation: isAlert ? 2 : 0,
-      color: isAlert ? Colors.orange.shade50 : null,
-      margin: const EdgeInsets.only(bottom: 8),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-        side:
-            isAlert
-                ? BorderSide(color: Colors.orange.shade200, width: 1)
-                : BorderSide.none,
-      ),
-      child: ListTile(
-        leading: CircleAvatar(child: Text(name.substring(0, 1))),
-        title: Text(name),
-        subtitle: Text('$action: $value'),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(
-              time,
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-            ),
-            if (isAlert)
-              const Icon(Icons.warning_amber, color: Colors.orange, size: 16),
-          ],
-        ),
-        onTap: () {
-          // TODO: Implement action to view student details
-        },
-      ),
-    );
   }
 }
