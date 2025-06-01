@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'package:sentimo/screens/assessment_detail_screen.dart';
 
 class MentalHealthAssessmentComponent extends StatelessWidget {
   final User? user;
@@ -151,127 +152,29 @@ class MentalHealthAssessmentComponent extends StatelessWidget {
             }
 
             return ListView.builder(
-              padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 80.0), // Extra bottom padding
+              padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 80.0),
               itemCount: assessments.length,
               itemBuilder: (context, index) {
                 try {
-                  final assessment = assessments[index].data() as Map<String, dynamic>;
-                  final List<dynamic> answers = assessment['answers'] ?? [];
+                  final assessmentDoc = assessments[index];
+                  final assessment = assessmentDoc.data() as Map<String, dynamic>;
                   final DateTime timestamp = (assessment['timestamp'] as Timestamp).toDate();
                   final String userId = assessment['userId'] as String;
-                  
-                  // Check if it's an alert (has concerning answers)
-                  bool isAlert = answers.any((answer) {
-                    final String answerText = answer['answer']?.toString().toLowerCase() ?? '';
-                    return answerText == 'bad' || 
-                           answerText == 'never' || 
-                           answerText == 'not at all';
-                  });
                   
                   // Format timestamp to a readable string
                   final String formattedDate = DateFormat('dd/MM/yyyy HH:mm').format(timestamp);
 
-                  return Card(
-                    elevation: 2,
-                    margin: const EdgeInsets.only(bottom: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: ExpansionTile(
-                      leading: isAlert 
-                          ? Icon(Icons.warning_rounded, color: Colors.orange.shade700)
-                          : null,
-                      title: FutureBuilder<DocumentSnapshot>(
-                        future: FirebaseFirestore.instance.collection('users').doc(userId).get(),
-                        builder: (context, userSnapshot) {
-                          if (userSnapshot.connectionState == ConnectionState.waiting) {
-                            return const Text('Loading student data...');
-                          }
-
-                          if (userSnapshot.hasError) {
-                            return Text('Student ID: $userId');
-                          }
-                          
-                          final userData = userSnapshot.data?.data() as Map<String, dynamic>?;
-                          final String studentName = userData?['displayName'] ?? 'Student';
-                          
-                          return Text(
-                            'Assessment from $studentName',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          );
-                        },
-                      ),
-                      subtitle: Text('Submitted on $formattedDate'),
-                      expandedCrossAxisAlignment: CrossAxisAlignment.start,
-                      childrenPadding: const EdgeInsets.all(16),
-                      children: [
-                        const Text(
-                          'Mental Health Assessment Results:',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                        ),
-                        const SizedBox(height: 12),
-                        ...answers.map<Widget>((answer) {
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  answer['question'] ?? 'Question not available',
-                                  style: const TextStyle(fontWeight: FontWeight.w500),
-                                ),
-                                const SizedBox(height: 4),
-                                Row(
-                                  children: [
-                                    const Text('Answer: '),
-                                    Chip(
-                                      label: Text(
-                                        answer['answer'] ?? 'No answer',
-                                        style: TextStyle(
-                                          color: _getAnswerColor(answer['answer'] ?? ''),
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      backgroundColor: _getAnswerColor(answer['answer'] ?? '').withOpacity(0.1),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          );
-                        }).toList(),
-                        const SizedBox(height: 8),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            TextButton.icon(
-                              icon: const Icon(Icons.person),
-                              label: const Text('View Student Profile'),
-                              onPressed: () {
-                                // TODO: Navigate to student profile
-                              },
-                            ),
-                            const SizedBox(width: 8),
-                            ElevatedButton.icon(
-                              icon: const Icon(Icons.message),
-                              label: const Text('Contact Student'),
-                              onPressed: () {
-                                // TODO: Implement contact action
-                              },
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
+                  return _buildAssessmentListItem(
+                    context,
+                    userId: userId,
+                    formattedDate: formattedDate,
+                    assessmentDoc: assessmentDoc,
                   );
                 } catch (e) {
-                  return Card(
-                    color: Colors.red.shade50,
-                    margin: const EdgeInsets.only(bottom: 16),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Text('Error parsing assessment data: $e'),
-                    ),
+                  return ListTile(
+                    title: Text('Error loading assessment'),
+                    subtitle: Text(e.toString()),
+                    tileColor: Colors.red.shade50,
                   );
                 }
               },
@@ -281,26 +184,80 @@ class MentalHealthAssessmentComponent extends StatelessWidget {
       },
     );
   }
-  
-  Color _getAnswerColor(String answer) {
-    switch (answer.toLowerCase()) {
-      case 'never':
-      case 'bad':
-      case 'not at all':
-        return Colors.red;
-      case 'rarely':
-        return Colors.orange;
-      case 'sometimes':
-        return Colors.amber;
-      case 'often':
-        return Colors.green;
-      case 'always':
-      case 'good':
-      case 'very good':
-      case 'excellent':
-        return Colors.blue;
-      default:
-        return Colors.grey;
-    }
+
+  Widget _buildAssessmentListItem(
+    BuildContext context, {
+    required String userId,
+    required String formattedDate,
+    required DocumentSnapshot assessmentDoc,
+  }) {
+    return FutureBuilder<DocumentSnapshot>(
+      future: FirebaseFirestore.instance.collection('users').doc(userId).get(),
+      builder: (context, userSnapshot) {
+        // Default student name placeholder
+        String studentName = 'Loading...';
+        String initial = 'S';
+        
+        if (userSnapshot.connectionState == ConnectionState.waiting) {
+          // Show loading placeholder while waiting for data
+          studentName = 'Loading...';
+        } else if (userSnapshot.hasError) {
+          // Show error placeholder if there's an error
+          studentName = 'Unknown Student';
+        } else if (userSnapshot.hasData && userSnapshot.data != null) {
+          // Extract student name from user data
+          final userData = userSnapshot.data!.data() as Map<String, dynamic>?;
+          
+          // Try multiple possible name fields, prioritizing 'name'
+          studentName = userData?['name'] ?? 
+                       userData?['displayName'] ?? 
+                       userData?['fullName'] ??
+                       (userData?['firstName'] != null ? '${userData?['firstName']} ${userData?['lastName'] ?? ''}' : 'Student ${userId.substring(0, 4)}');
+          
+          // Get the initial for the avatar
+          if (studentName.trim().isNotEmpty) {
+            initial = studentName.trim()[0].toUpperCase();
+          }
+        }
+        
+        return Card(
+          elevation: 1,
+          margin: const EdgeInsets.only(bottom: 10),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            leading: CircleAvatar(
+              backgroundColor: Colors.teal.shade100,
+              child: Text(
+                initial,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.teal.shade700,
+                ),
+              ),
+            ),
+            title: Text(
+              studentName,
+              style: const TextStyle(fontWeight: FontWeight.w500),
+            ),
+            subtitle: Text('Submitted on $formattedDate'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => AssessmentDetailScreen(
+                    assessmentId: assessmentDoc.id,
+                    studentId: userId,
+                  ),
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
   }
 }
