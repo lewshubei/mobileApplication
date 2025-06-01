@@ -47,13 +47,6 @@ class CounselorHomeScreen extends StatelessWidget {
             ),
           ],
         ),
-        floatingActionButton: FloatingActionButton(
-          onPressed: () {
-            // TODO: Implement action to view all students
-          },
-          tooltip: 'View all students',
-          child: const Icon(Icons.people),
-        ),
       ),
     );
   }

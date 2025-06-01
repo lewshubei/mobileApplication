@@ -563,23 +563,6 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
             }),
             
             const SizedBox(height: 16),
-            
-            // Action buttons
-            SizedBox(
-              width: double.infinity,
-              child: Center(
-                child: ElevatedButton.icon(
-                  icon: const Icon(Icons.message),
-                  label: const Text('Contact Student'),
-                  onPressed: () {
-                    // TODO: Implement contact action
-                  },
-                  style: ElevatedButton.styleFrom(
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                ),
-              ),
-            ),
           ],
         );
       },

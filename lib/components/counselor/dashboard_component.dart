@@ -3,6 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import 'package:sentimo/providers/user_provider.dart';
+import 'package:intl/intl.dart';
+import 'package:sentimo/screens/assessment_detail_screen.dart';
 
 class CounselorDashboardComponent extends StatelessWidget {
   const CounselorDashboardComponent({Key? key}) : super(key: key);
@@ -110,6 +112,7 @@ class CounselorDashboardComponent extends StatelessWidget {
                   final List<dynamic> answers = data['answers'] ?? [];
                   final Timestamp timestamp = data['timestamp'] as Timestamp;
                   final String userId = data['userId'] as String;
+                  final String assessmentId = sortedAssessments[i].id;
                   
                   // Check if it's an alert
                   bool isAlert = answers.any((answer) {
@@ -124,6 +127,7 @@ class CounselorDashboardComponent extends StatelessWidget {
                     'type': 'assessment',
                     'timestamp': timestamp,
                     'isAlert': isAlert,
+                    'assessmentId': assessmentId,
                   });
                 }
               }
@@ -133,36 +137,48 @@ class CounselorDashboardComponent extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Welcome section
-                    Card(
-                      elevation: 2,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Welcome, Counselor',
-                              style: Theme.of(context).textTheme.headlineSmall,
+                    // Welcome section with counselor name
+                    FutureBuilder<DocumentSnapshot>(
+                      future: FirebaseFirestore.instance
+                          .collection('users')
+                          .doc(FirebaseAuth.instance.currentUser?.uid)
+                          .get(),
+                      builder: (context, counselorSnapshot) {
+                        String counselorName = Provider.of<UserProvider>(context).user?.displayName ?? 
+                          FirebaseAuth.instance.currentUser?.displayName ?? 
+                          FirebaseAuth.instance.currentUser?.email ?? 
+                          'Counselor';
+                        
+                        if (counselorSnapshot.hasData) {
+                          final counselorData = counselorSnapshot.data!.data() as Map<String, dynamic>?;
+                          counselorName = counselorData?['name'] ?? 
+                                         counselorData?['displayName'] ?? 
+                                         counselorName;
+                        }
+                        
+                        return Card(
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Welcome, $counselorName',
+                                  style: Theme.of(context).textTheme.headlineSmall,
+                                ),
+                                const SizedBox(height: 16),
+                                const Text(
+                                  'You can view and manage student mood data from this dashboard.',
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: 8),
-                            Text(
-                              Provider.of<UserProvider>(context).user?.displayName ?? 
-                              FirebaseAuth.instance.currentUser?.displayName ?? 
-                              FirebaseAuth.instance.currentUser?.email ?? 
-                              'User',
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                            const SizedBox(height: 16),
-                            const Text(
-                              'You can view and manage student mood data from this dashboard.',
-                            ),
-                          ],
-                        ),
-                      ),
+                          ),
+                        );
+                      }
                     ),
                     
                     const SizedBox(height: 24),
@@ -225,16 +241,33 @@ class CounselorDashboardComponent extends StatelessWidget {
                     const SizedBox(height: 24),
                     
                     // Recent activity
-                    Text(
-                      'Recent Activity',
-                      style: Theme.of(context).textTheme.titleLarge,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Recent Activity',
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                        if (recentActivities.isNotEmpty)
+                          TextButton(
+                            onPressed: () {
+                              // Navigate to all activities
+                            },
+                            child: const Text('View All'),
+                          ),
+                      ],
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 8),
                     
                     // Show loading indicator if data is still loading
                     if (usersSnapshot.connectionState == ConnectionState.waiting || 
                         assessmentsSnapshot.connectionState == ConnectionState.waiting)
-                      const Center(child: CircularProgressIndicator()),
+                      const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(24.0),
+                          child: CircularProgressIndicator(),
+                        ),
+                      ),
                       
                     // Show error if any
                     if (usersSnapshot.hasError || assessmentsSnapshot.hasError)
@@ -244,19 +277,61 @@ class CounselorDashboardComponent extends StatelessWidget {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         child: Padding(
                           padding: const EdgeInsets.all(16.0),
-                          child: Text('Error loading data: ${usersSnapshot.error ?? assessmentsSnapshot.error}'),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Row(
+                                children: [
+                                  Icon(Icons.error_outline, color: Colors.red),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Error',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.red,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Text('Error loading data: ${usersSnapshot.error ?? assessmentsSnapshot.error}'),
+                              const SizedBox(height: 8),
+                              ElevatedButton(
+                                onPressed: () {
+                                  // Force refresh somehow
+                                },
+                                child: const Text('Retry'),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                       
                     // Show no activities message if needed
                     if (recentActivities.isEmpty && 
                         !(usersSnapshot.connectionState == ConnectionState.waiting) && 
-                        !(assessmentsSnapshot.connectionState == ConnectionState.waiting))
+                        !(assessmentsSnapshot.connectionState == ConnectionState.waiting) &&
+                        !usersSnapshot.hasError && !assessmentsSnapshot.hasError)
                       Card(
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        child: const Padding(
-                          padding: EdgeInsets.all(16.0),
-                          child: Text('No recent activity to display'),
+                        child: Padding(
+                          padding: const EdgeInsets.all(24.0),
+                          child: Center(
+                            child: Column(
+                              children: [
+                                Icon(
+                                  Icons.hourglass_empty,
+                                  size: 48,
+                                  color: Colors.grey.shade400,
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'No recent activity to display',
+                                  style: TextStyle(color: Colors.grey.shade600),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
                       
@@ -265,8 +340,8 @@ class CounselorDashboardComponent extends StatelessWidget {
                       return _buildActivityCard(context, activity);
                     }).toList(),
                     
-                    // Add extra space at bottom to prevent FAB overlap
-                    const SizedBox(height: 80),
+                    // Small padding at bottom - reduced from 80 to 16
+                    const SizedBox(height: 16),
                   ],
                 ),
               );
@@ -284,7 +359,9 @@ class CounselorDashboardComponent extends StatelessWidget {
         String name = 'Student';
         if (userSnapshot.hasData) {
           final userData = userSnapshot.data!.data() as Map<String, dynamic>?;
-          name = userData?['displayName'] ?? 'Student';
+          name = userData?['name'] ?? 
+                 userData?['displayName'] ?? 
+                 'Student ${activity['userId'].toString().substring(0, 4)}';
         }
         
         final timestamp = activity['timestamp'] as Timestamp;
@@ -299,72 +376,51 @@ class CounselorDashboardComponent extends StatelessWidget {
           timeAgo = '${difference.inMinutes} min ago';
         } else if (difference.inDays < 1) {
           timeAgo = '${difference.inHours} hr ago';
-        } else {
+        } else if (difference.inDays < 7) {
           timeAgo = '${difference.inDays} day${difference.inDays == 1 ? '' : 's'} ago';
+        } else {
+          // Use date format for older dates
+          final DateFormat formatter = DateFormat('MMM dd');
+          timeAgo = formatter.format(assessmentTime);
         }
         
-        final isAlert = activity['isAlert'] as bool;
+        final assessmentId = activity['assessmentId'] as String;
         
         return Card(
           elevation: 1,
-          surfaceTintColor: isAlert ? Colors.orange.shade50 : null,
           clipBehavior: Clip.antiAlias,
           margin: const EdgeInsets.only(bottom: 12),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
-            side: isAlert
-                ? BorderSide(color: Colors.orange.shade300, width: 1)
-                : BorderSide.none,
           ),
           child: InkWell(
             onTap: () {
-              // TODO: Navigate to assessment details
+              // Navigate to assessment details screen
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => AssessmentDetailScreen(
+                    assessmentId: assessmentId,
+                    studentId: activity['userId'],
+                  ),
+                ),
+              );
             },
             child: Padding(
               padding: const EdgeInsets.all(12.0),
               child: Row(
                 children: [
-                  // Avatar and status indicator
-                  Stack(
-                    children: [
-                      CircleAvatar(
-                        backgroundColor: Colors.teal.shade200,
-                        radius: 24,
-                        child: Text(
-                          name.isNotEmpty ? name.substring(0, 1) : 'S',
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
+                  // Avatar
+                  CircleAvatar(
+                    backgroundColor: Colors.teal.shade200,
+                    radius: 24,
+                    child: Text(
+                      name.isNotEmpty ? name.substring(0, 1).toUpperCase() : 'S',
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
                       ),
-                      if (isAlert)
-                        Positioned(
-                          right: 0,
-                          bottom: 0,
-                          child: Container(
-                            padding: const EdgeInsets.all(2),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(8),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.grey.withOpacity(0.3),
-                                  spreadRadius: 1,
-                                  blurRadius: 2,
-                                  offset: const Offset(0, 1),
-                                ),
-                              ],
-                            ),
-                            child: Icon(
-                              Icons.warning_rounded,
-                              size: 16,
-                              color: Colors.orange.shade700,
-                            ),
-                          ),
-                        ),
-                    ],
+                    ),
                   ),
                   
                   const SizedBox(width: 16),
@@ -374,36 +430,12 @@ class CounselorDashboardComponent extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          children: [
-                            Text(
-                              name,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                            if (isAlert)
-                              Container(
-                                margin: const EdgeInsets.only(left: 8),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, 
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.orange.shade100,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  'Needs Attention',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.orange.shade900,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                          ],
+                        Text(
+                          name,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
                         ),
                         const SizedBox(height: 4),
                         Text(
