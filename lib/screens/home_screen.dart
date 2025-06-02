@@ -21,7 +21,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isLoadingMoodData = false;
 
   // Store mood data (now will be synced with Firebase)
-  Map<String, Map<String, dynamic>> _moodData = {};
+  final Map<String, Map<String, dynamic>> _moodData = {};
 
   // Add these methods for Firebase operations
   Future<void> _loadMoodDataFromFirebase() async {
@@ -51,7 +51,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _moodData.clear();
         for (var doc in querySnapshot.docs) {
           final data = doc.data();
-          print('Loading mood: ${doc.id} -> ${data}');
+          print('Loading mood: ${doc.id} -> $data');
           _moodData[doc.id] = {
             'moodIndex': data['moodIndex'],
             'date': (data['date'] as Timestamp).toDate(),
@@ -84,8 +84,7 @@ class _HomeScreenState extends State<HomeScreen> {
     DateTime date, {
     String category = 'General',
     String description = '',
-    }) async {
-
+  }) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       print('No user logged in, cannot save mood data');
@@ -649,346 +648,353 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showMoodSelectionDialog(BuildContext context, DateTime selectedDate) {
-  final isToday =
-      selectedDate.year == DateTime.now().year &&
-      selectedDate.month == DateTime.now().month &&
-      selectedDate.day == DateTime.now().day;
+    final isToday =
+        selectedDate.year == DateTime.now().year &&
+        selectedDate.month == DateTime.now().month &&
+        selectedDate.day == DateTime.now().day;
 
-  // Check if we already have mood data for this date
-  final moodKey = _getMoodKey(selectedDate);
-  final existingData = _moodData[moodKey];
-  
-  // Initialize values with existing data or defaults
-  int selectedMoodIndex = existingData?['moodIndex'] ?? 2; // Default to "Neutral"
-  String selectedCategory = existingData?['category'] ?? 'General';
-  String description = existingData?['description'] ?? '';
+    // Check if we already have mood data for this date
+    final moodKey = _getMoodKey(selectedDate);
+    final existingData = _moodData[moodKey];
 
-  showDialog(
-    context: context,
-    builder: (context) {
-      final TextEditingController descriptionController = 
-          TextEditingController(text: description);
+    // Initialize values with existing data or defaults
+    int selectedMoodIndex =
+        existingData?['moodIndex'] ?? 2; // Default to "Neutral"
+    String selectedCategory = existingData?['category'] ?? 'General';
+    String description = existingData?['description'] ?? '';
 
-      return StatefulBuilder(
-        builder: (context, setDialogState) {
-          return Dialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Close button and date
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: () => Navigator.pop(context),
-                          padding: EdgeInsets.zero,
+    showDialog(
+      context: context,
+      builder: (context) {
+        final TextEditingController descriptionController =
+            TextEditingController(text: description);
+
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Close button and date
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: () => Navigator.pop(context),
+                            padding: EdgeInsets.zero,
+                          ),
+                          Text(
+                            isToday
+                                ? 'Today, ${DateFormat('MMM d').format(selectedDate)}'
+                                : DateFormat('MMM d').format(selectedDate),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                          const SizedBox(width: 48), // For balance
+                        ],
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // Question
+                      Text(
+                        isToday
+                            ? 'How do you feel today?'
+                            : 'How did you feel?',
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
                         ),
-                        Text(
-                          isToday
-                              ? 'Today, ${DateFormat('MMM d').format(selectedDate)}'
-                              : DateFormat('MMM d').format(selectedDate),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
+                        textAlign: TextAlign.center,
+                      ),
+
+                      const SizedBox(height: 30),
+
+                      // Mood emoji
+                      Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          color: _getMoodColor(selectedMoodIndex),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: Text(
+                            _getMoodEmoji(selectedMoodIndex),
+                            style: const TextStyle(fontSize: 50),
                           ),
                         ),
-                        const SizedBox(width: 48), // For balance
-                      ],
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // Question
-                    Text(
-                      isToday
-                          ? 'How do you feel today?'
-                          : 'How did you feel?',
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
                       ),
-                      textAlign: TextAlign.center,
-                    ),
 
-                    const SizedBox(height: 30),
+                      const SizedBox(height: 16),
 
-                    // Mood emoji
-                    Container(
-                      width: 100,
-                      height: 100,
-                      decoration: BoxDecoration(
-                        color: _getMoodColor(selectedMoodIndex),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Center(
-                        child: Text(
-                          _getMoodEmoji(selectedMoodIndex),
-                          style: const TextStyle(fontSize: 50),
+                      // Mood label
+                      Text(
+                        _getMoodLabel(selectedMoodIndex),
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                    ),
 
-                    const SizedBox(height: 16),
+                      const SizedBox(height: 30),
 
-                    // Mood label
-                    Text(
-                      _getMoodLabel(selectedMoodIndex),
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-
-                    const SizedBox(height: 30),
-
-                    // Mood selector
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: List.generate(5, (index) {
-                        return GestureDetector(
-                          onTap: () {
-                            setDialogState(() {
-                              selectedMoodIndex = index;
-                            });
-                          },
-                          child: Container(
-                            width: 45,
-                            height: 45,
-                            decoration: BoxDecoration(
-                              color: _getMoodColor(index),
-                              shape: BoxShape.circle,
-                              border: selectedMoodIndex == index
-                                  ? Border.all(
-                                      color: Colors.white,
-                                      width: 3,
-                                    )
-                                  : null,
+                      // Mood selector
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: List.generate(5, (index) {
+                          return GestureDetector(
+                            onTap: () {
+                              setDialogState(() {
+                                selectedMoodIndex = index;
+                              });
+                            },
+                            child: Container(
+                              width: 45,
+                              height: 45,
+                              decoration: BoxDecoration(
+                                color: _getMoodColor(index),
+                                shape: BoxShape.circle,
+                                border:
+                                    selectedMoodIndex == index
+                                        ? Border.all(
+                                          color: Colors.white,
+                                          width: 3,
+                                        )
+                                        : null,
+                              ),
+                              child: Center(
+                                child: Text(
+                                  _getMoodEmoji(index),
+                                  style: const TextStyle(fontSize: 22),
+                                ),
+                              ),
                             ),
-                            child: Center(
-                              child: Text(
-                                _getMoodEmoji(index),
-                                style: const TextStyle(fontSize: 22),
+                          );
+                        }),
+                      ),
+
+                      const SizedBox(height: 30),
+
+                      // Category selection
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Category',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey.shade700,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          DropdownButtonFormField<String>(
+                            value: selectedCategory,
+                            items: const [
+                              DropdownMenuItem(
+                                value: 'General',
+                                child: Text('General'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'Work',
+                                child: Text('Work'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'School',
+                                child: Text('School'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'Home',
+                                child: Text('Home'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'Relationships',
+                                child: Text('Relationships'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'Health',
+                                child: Text('Health'),
+                              ),
+                            ],
+                            onChanged: (value) {
+                              setDialogState(() {
+                                selectedCategory = value!;
+                              });
+                            },
+                            decoration: InputDecoration(
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
                               ),
                             ),
                           ),
-                        );
-                      }),
-                    ),
+                        ],
+                      ),
 
-                    const SizedBox(height: 30),
+                      const SizedBox(height: 20),
 
-                    // Category selection
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Category',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey.shade700,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        DropdownButtonFormField<String>(
-                          value: selectedCategory,
-                          items: const [
-                            DropdownMenuItem(
-                              value: 'General',
-                              child: Text('General'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'Work',
-                              child: Text('Work'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'School',
-                              child: Text('School'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'Home',
-                              child: Text('Home'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'Relationships',
-                              child: Text('Relationships'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'Health',
-                              child: Text('Health'),
-                            ),
-                          ],
-                          onChanged: (value) {
-                            setDialogState(() {
-                              selectedCategory = value!;
-                            });
-                          },
-                          decoration: InputDecoration(
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
+                      // Description field
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Description (optional)',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey.shade700,
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // Description field
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Description (optional)',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey.shade700,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        TextField(
-                          controller: descriptionController,
-                          maxLines: 3,
-                          decoration: InputDecoration(
-                            hintText: 'Add any notes about your mood...',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: descriptionController,
+                            maxLines: 3,
+                            decoration: InputDecoration(
+                              hintText: 'Add any notes about your mood...',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              contentPadding: const EdgeInsets.all(16),
                             ),
-                            contentPadding: const EdgeInsets.all(16),
                           ),
-                        ),
-                      ],
-                    ),
-                    
-                    const SizedBox(height: 30),
+                        ],
+                      ),
 
-                    // Action buttons
-                    Row(
-                      children: [
-                        // Add a delete button if there's existing data
-                        if (existingData != null)
+                      const SizedBox(height: 30),
+
+                      // Action buttons
+                      Row(
+                        children: [
+                          // Add a delete button if there's existing data
+                          if (existingData != null)
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () async {
+                                  // Remove from local state
+                                  setState(() {
+                                    _moodData.remove(moodKey);
+                                  });
+
+                                  // Remove from Firebase
+                                  final user =
+                                      FirebaseAuth.instance.currentUser;
+                                  if (user != null) {
+                                    await FirebaseFirestore.instance
+                                        .collection('users')
+                                        .doc(user.uid)
+                                        .collection('moods')
+                                        .doc(moodKey)
+                                        .delete();
+                                  }
+
+                                  Navigator.pop(context);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Mood entry deleted'),
+                                      backgroundColor: Colors.green,
+                                    ),
+                                  );
+                                },
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 16,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child: const Text(
+                                  'Delete',
+                                  style: TextStyle(
+                                    color: Colors.red,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          if (existingData != null) const SizedBox(width: 16),
                           Expanded(
-                            child: OutlinedButton(
+                            flex: existingData != null ? 1 : 2,
+                            child: ElevatedButton(
                               onPressed: () async {
-                                // Remove from local state
+                                // Save mood data locally first
                                 setState(() {
-                                  _moodData.remove(moodKey);
+                                  _moodData[moodKey] = {
+                                    'moodIndex': selectedMoodIndex,
+                                    'date': selectedDate,
+                                    'category': selectedCategory,
+                                    'description': descriptionController.text,
+                                  };
                                 });
-                                
-                                // Remove from Firebase
-                                final user = FirebaseAuth.instance.currentUser;
-                                if (user != null) {
-                                  await FirebaseFirestore.instance
-                                    .collection('users')
-                                    .doc(user.uid)
-                                    .collection('moods')
-                                    .doc(moodKey)
-                                    .delete();
-                                }
-                                
+
                                 Navigator.pop(context);
+
+                                // Show immediate confirmation
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Mood entry deleted'),
+                                  SnackBar(
+                                    content: Text(
+                                      existingData != null
+                                          ? 'Mood updated: ${_getMoodLabel(selectedMoodIndex)}'
+                                          : 'Mood saved: ${_getMoodLabel(selectedMoodIndex)}',
+                                    ),
                                     backgroundColor: Colors.green,
+                                    duration: const Duration(seconds: 2),
                                   ),
                                 );
+
+                                // Save to Firebase in background
+                                await _saveMoodToFirebase(
+                                  moodKey,
+                                  selectedMoodIndex,
+                                  selectedDate,
+                                  category: selectedCategory,
+                                  description: descriptionController.text,
+                                );
                               },
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 16),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.green,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
-                              child: const Text(
-                                'Delete',
-                                style: TextStyle(
-                                  color: Colors.red,
+                              child: Text(
+                                existingData != null ? 'Update' : 'Save',
+                                style: const TextStyle(
+                                  fontSize: 16,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
                             ),
                           ),
-                        if (existingData != null) const SizedBox(width: 16),
-                        Expanded(
-                          flex: existingData != null ? 1 : 2,
-                          child: ElevatedButton(
-                            onPressed: () async {
-                              // Save mood data locally first
-                              setState(() {
-                                _moodData[moodKey] = {
-                                  'moodIndex': selectedMoodIndex,
-                                  'date': selectedDate,
-                                  'category': selectedCategory,
-                                  'description': descriptionController.text,
-                                };
-                              });
-
-                              Navigator.pop(context);
-
-                              // Show immediate confirmation
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    existingData != null 
-                                      ? 'Mood updated: ${_getMoodLabel(selectedMoodIndex)}'
-                                      : 'Mood saved: ${_getMoodLabel(selectedMoodIndex)}',
-                                  ),
-                                  backgroundColor: Colors.green,
-                                  duration: const Duration(seconds: 2),
-                                ),
-                              );
-
-                              // Save to Firebase in background
-                              await _saveMoodToFirebase(
-                                moodKey,
-                                selectedMoodIndex,
-                                selectedDate,
-                                category: selectedCategory,
-                                description: descriptionController.text,
-                              );
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            child: Text(
-                              existingData != null ? 'Update' : 'Save',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          );
-        },
-      );
-    },
-  );
-}
+            );
+          },
+        );
+      },
+    );
+  }
 
   Widget _buildAnalysisPage(BuildContext context) {
     return const Center(
