@@ -17,6 +17,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
   String _selectedRole = 'student';
   bool _isLoading = false;
   String _errorMessage = '';
@@ -38,6 +39,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _passwordController.removeListener(_updatePasswordStrength);
     _emailController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
@@ -277,6 +279,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ],
                         ),
                       ],
+                      const SizedBox(height: 16),
+                      
+                      // Confirm Password
+                      TextFormField(
+                        controller: _confirmPasswordController,
+                        obscureText: true,
+                        decoration: const InputDecoration(
+                          labelText: 'Confirm Password',
+                          prefixIcon: Icon(Icons.lock_outline),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Confirm your password';
+                          }
+                          if (value != _passwordController.text) {
+                            return 'Passwords do not match';
+                          }
+                          return null;
+                        },
+                      ),
                       const SizedBox(height: 16),
 
                       // Role Dropdown
