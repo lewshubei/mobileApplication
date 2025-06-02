@@ -1291,74 +1291,99 @@ class _HomeScreenState extends State<HomeScreen> {
     showDialog(
       context: context,
       builder:
-          (context) => AlertDialog(
-            title: const Text('Assessment Details'),
-            content: SingleChildScrollView(
+          (context) => Dialog(
+            insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Container(
+              width: MediaQuery.of(context).size.width * 0.9,
+              height: MediaQuery.of(context).size.height * 0.7, // 固定高度
+              padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (timestamp != null)
-                    Text(
-                      'Date: ${DateFormat('MMM dd, yyyy - hh:mm a').format(timestamp.toDate())}',
-                      style: TextStyle(color: Colors.grey.shade600),
-                    ),
-                  if (shared)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Row(
+                  const Text(
+                    'Assessment Details',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(
-                            Icons.share,
-                            color: Colors.green,
-                            size: 16,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Shared with counselor',
-                            style: TextStyle(
-                              color: Colors.green.shade700,
-                              fontSize: 12,
+                          if (timestamp != null)
+                            Text(
+                              'Date: ${DateFormat('MMM dd, yyyy - hh:mm a').format(timestamp.toDate())}',
+                              style: TextStyle(color: Colors.grey.shade600),
+                            ),
+                          if (shared)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.share,
+                                    color: Colors.green,
+                                    size: 16,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Shared with counselor',
+                                    style: TextStyle(
+                                      color: Colors.green.shade700,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          const SizedBox(height: 16),
+                          ...answers.map(
+                            (qa) => Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    qa['question'],
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    qa['answer'] ?? 'No answer',
+                                    style: TextStyle(
+                                      color: Colors.grey.shade700,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  const Divider(height: 1),
+                                ],
+                              ),
                             ),
                           ),
                         ],
                       ),
                     ),
+                  ),
+
                   const SizedBox(height: 16),
-                  ...answers
-                      .map(
-                        (qa) => Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                qa['question'],
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                qa['answer'] ?? 'No answer',
-                                style: TextStyle(color: Colors.grey.shade700),
-                              ),
-                              const SizedBox(height: 8),
-                              const Divider(height: 1),
-                            ],
-                          ),
-                        ),
-                      )
-                      .toList(),
+
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Close'),
+                    ),
+                  ),
                 ],
               ),
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Close'),
-              ),
-            ],
           ),
     );
   }
