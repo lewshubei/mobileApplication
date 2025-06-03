@@ -1,3 +1,4 @@
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -6,6 +7,8 @@ import 'package:sentimo/providers/user_provider.dart';
 import 'package:sentimo/screens/profile_screen.dart';
 import 'package:sentimo/screens/login_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/mood_entry.dart';
+
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -22,6 +25,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Store mood data (now will be synced with Firebase)
   final Map<String, Map<String, dynamic>> _moodData = {};
+
+  bool _showPieChart = false;
+  DateTime? _selectedStartDate;
+  DateTime? _selectedEndDate;
 
   // Mental Health Questions
   final List<Map<String, dynamic>> questions = [
@@ -1041,8 +1048,74 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildAnalysisPage(BuildContext context) {
-    return const Center(
-      child: Text('Analysis Page', style: TextStyle(fontSize: 24)),
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
+              children: [
+                Icon(Icons.analytics, color: Colors.blue.shade600, size: 28),
+                const SizedBox(width: 12),
+                Text(
+                  'Mood Analysis',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            // Date Range Selector
+            _buildDateRangeSelector(),
+            const SizedBox(height: 24),
+
+            // Analysis Content
+            FutureBuilder<List<MoodAnalysisData>>(
+              future: _getMoodDataForAnalysis(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(32.0),
+                      child: CircularProgressIndicator(),
+                    ),
+                  );
+                }
+
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Column(
+                      children: [
+                        Icon(Icons.error_outline, size: 64, color: Colors.red.shade400),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Error loading mood data',
+                          style: TextStyle(color: Colors.red.shade700),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                final allMoodData = snapshot.data ?? [];
+                final filteredData = _selectedStartDate != null && _selectedEndDate != null
+                    ? MoodAnalyzer.filterByDateRange(allMoodData, _selectedStartDate!, _selectedEndDate!)
+                    : allMoodData;
+
+                if (filteredData.isEmpty) {
+                  return _buildEmptyAnalysisState();
+                }
+
+                return _buildAnalysisContent(filteredData);
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -1709,5 +1782,599 @@ class _HomeScreenState extends State<HomeScreen> {
       print('Error fetching assessments: $e');
       return [];
     }
+  }
+
+  Widget _buildDateRangeSelector() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Analysis Period',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey.shade700,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildDateButton(
+                    'Start Date',
+                    _selectedStartDate,
+                    () => _selectStartDate(),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildDateButton(
+                    'End Date', 
+                    _selectedEndDate,
+                    () => _selectEndDate(),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                _buildQuickDateButton('Last 7 days', () => _setQuickDateRange(7)),
+                const SizedBox(width: 8),
+                _buildQuickDateButton('Last 30 days', () => _setQuickDateRange(30)),
+                const SizedBox(width: 8),
+                _buildQuickDateButton('All time', () => _clearDateRange()),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDateButton(String label, DateTime? date, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 16),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              date != null ? DateFormat('MMM dd, yyyy').format(date) : 'Select date',
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickDateButton(String label, VoidCallback onTap) {
+    return Expanded(
+      child: OutlinedButton(
+        onPressed: onTap,
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+        ),
+        child: Text(label, style: const TextStyle(fontSize: 12)),
+      ),
+    );
+  }
+
+  Future<void> _selectStartDate() async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: _selectedStartDate ?? DateTime.now().subtract(const Duration(days: 30)),
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+    );
+    if (date != null) {
+      setState(() {
+        _selectedStartDate = date;
+      });
+    }
+  }
+
+  Future<void> _selectEndDate() async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: _selectedEndDate ?? DateTime.now(),
+      firstDate: _selectedStartDate ?? DateTime(2020),
+      lastDate: DateTime.now(),
+    );
+    if (date != null) {
+      setState(() {
+        _selectedEndDate = date;
+      });
+    }
+  }
+
+  void _setQuickDateRange(int days) {
+    setState(() {
+      _selectedEndDate = DateTime.now();
+      _selectedStartDate = DateTime.now().subtract(Duration(days: days));
+    });
+  }
+
+  void _clearDateRange() {
+    setState(() {
+      _selectedStartDate = null;
+      _selectedEndDate = null;
+    });
+  }
+
+  Future<List<MoodAnalysisData>> _getMoodDataForAnalysis() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return [];
+
+    try {
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('moods')
+          .orderBy('date', descending: false)
+          .get();
+
+      return querySnapshot.docs.map((doc) {
+        return MoodAnalysisData.fromFirestore(doc.id, doc.data());
+      }).toList();
+    } catch (e) {
+      print('Error fetching mood data for analysis: $e');
+      return [];
+    }
+  }
+
+  Widget _buildEmptyAnalysisState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.mood_outlined,
+              size: 64,
+              color: Colors.grey.shade400,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No mood data found',
+              style: TextStyle(
+                fontSize: 18,
+                color: Colors.grey.shade600,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Start tracking your mood to see analysis',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAnalysisContent(List<MoodAnalysisData> data) {
+    final mostCommon = MoodAnalyzer.getMostCommonMood(data);
+    final distribution = MoodAnalyzer.getMoodDistribution(data);
+    final average = MoodAnalyzer.getAverageMoodScore(data);
+    final categoryStats = MoodAnalyzer.getCategoryAnalysis(data);
+    final insights = MoodAnalyzer.generateInsights(data);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Summary Cards
+        _buildSummaryCards(data, mostCommon, average),
+        const SizedBox(height: 24),
+
+        // Mood Distribution
+        _buildMoodDistributionCard(distribution),
+        const SizedBox(height: 24),
+
+        // Category Analysis
+        if (categoryStats.isNotEmpty) ...[
+          _buildCategoryAnalysisCard(categoryStats),
+          const SizedBox(height: 24),
+        ],
+
+        // Insights
+        _buildInsightsCard(insights),
+      ],
+    );
+  }
+
+  Widget _buildSummaryCards(List<MoodAnalysisData> data, MoodStats? mostCommon, double average) {
+    return Row(
+      children: [
+        const SizedBox(width: 12),
+        Expanded(
+          child: _buildSummaryCard(
+            'Total \nEntries',
+            data.length.toString(),
+            Icons.calendar_today,
+            Colors.blue,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _buildSummaryCard(
+            'Average Mood',
+            '${average.toStringAsFixed(1)}/4',
+            Icons.trending_up,
+            Colors.green,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _buildSummaryCard(
+            'Most Common',
+            mostCommon?.emoji ?? '🙂',
+            Icons.emoji_emotions,
+            Colors.orange,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSummaryCard(String title, String value, IconData icon, Color color) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 24),
+            const SizedBox(height: 8),
+            Text(
+              value,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey.shade600,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMoodDistributionCard(List<MoodStats> distribution) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Mood Distribution',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Row(
+                  children: [
+                    IconButton(
+                      icon: Icon(
+                        Icons.bar_chart,
+                        color: !_showPieChart ? Colors.blue.shade600 : Colors.grey,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _showPieChart = false;
+                        });
+                      },
+                      tooltip: 'Bar Chart',
+                    ),
+                    IconButton(
+                      icon: Icon(
+                        Icons.pie_chart,
+                        color: _showPieChart ? Colors.blue.shade600 : Colors.grey,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _showPieChart = true;
+                        });
+                      },
+                      tooltip: 'Pie Chart',
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              child: _showPieChart 
+                  ? _buildPieChart(distribution)
+                  : _buildBarChart(distribution),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPieChart(List<MoodStats> distribution) {
+    final nonZeroDistribution = distribution.where((mood) => mood.count > 0).toList();
+    
+    if (nonZeroDistribution.isEmpty) {
+      return Container(
+        height: 200,
+        child: Center(
+          child: Text(
+            'No mood data to display',
+            style: TextStyle(color: Colors.grey.shade600),
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        Container(
+          height: 250,
+          child: PieChart(
+            PieChartData(
+              sections: nonZeroDistribution.map((mood) {
+                return PieChartSectionData(
+                  color: MoodAnalyzer.moodColors[mood.moodIndex],
+                  value: mood.percentage,
+                  title: '${mood.percentage.toStringAsFixed(1)}%',
+                  radius: 100,
+                  titleStyle: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                );
+              }).toList(),
+              sectionsSpace: 2,
+              centerSpaceRadius: 40,
+            ),
+          ),
+        ),
+        const SizedBox(height: 30),
+        // Legend
+        Wrap(
+          spacing: 20,
+          runSpacing: 12,
+          alignment: WrapAlignment.center,
+          children: nonZeroDistribution.map((mood) {
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 16,
+                    height: 16,
+                    decoration: BoxDecoration(
+                      color: MoodAnalyzer.moodColors[mood.moodIndex],
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 7),
+                  Text(
+                    '${mood.emoji} ${mood.label}',
+                    style: const TextStyle(
+                      fontSize: 13, // Slightly larger font
+                      fontWeight: FontWeight.w500, // Medium weight for better readability
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBarChart(List<MoodStats> distribution) {
+    return Column(
+      children: distribution.map((mood) => _buildMoodDistributionItem(mood)).toList(),
+    );
+  }
+
+  Widget _buildMoodDistributionItem(MoodStats mood) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12.0),
+      child: Row(
+        children: [
+          Text(
+            mood.emoji,
+            style: const TextStyle(fontSize: 24),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      mood.label,
+                      style: const TextStyle(fontWeight: FontWeight.w500),
+                    ),
+                    Text(
+                      '${mood.count} (${mood.percentage.toStringAsFixed(1)}%)',
+                      style: TextStyle(color: Colors.grey.shade600),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                LinearProgressIndicator(
+                  value: mood.percentage / 100,
+                  backgroundColor: Colors.grey.shade200,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    MoodAnalyzer.moodColors[mood.moodIndex],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCategoryAnalysisCard(List<CategoryStats> categoryStats) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Mood by Category',
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            ...categoryStats.map((category) => _buildCategoryItem(category)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCategoryItem(CategoryStats category) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12.0),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: MoodAnalyzer.moodColors[category.averageScore.round().clamp(0, 4)].withOpacity(0.2),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Center(
+              child: Text(
+                category.averageEmoji,
+                style: const TextStyle(fontSize: 20),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  category.category,
+                  style: const TextStyle(fontWeight: FontWeight.w500),
+                ),
+                Text(
+                  '${category.averageLabel} (${category.averageScore.toStringAsFixed(1)}/4) • ${category.count} entries',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInsightsCard(List<String> insights) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.lightbulb_outline, color: Colors.amber.shade600),
+                const SizedBox(width: 8),
+                Text(
+                  'Key Insights',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            ...insights.asMap().entries.map((entry) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 20,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade100,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Center(
+                        child: Text(
+                          '${entry.key + 1}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue.shade700,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        entry.value,
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
   }
 }
