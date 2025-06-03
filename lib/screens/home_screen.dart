@@ -21,7 +21,51 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isLoadingMoodData = false;
 
   // Store mood data (now will be synced with Firebase)
-  Map<String, Map<String, dynamic>> _moodData = {};
+  final Map<String, Map<String, dynamic>> _moodData = {};
+
+  // Mental Health Questions
+  final List<Map<String, dynamic>> questions = [
+    {
+      'question': 'How often do you feel stressed?',
+      'options': ['Never', 'Sometimes', 'Often', 'Always'],
+    },
+    {
+      'question': 'Do you have trouble sleeping?',
+      'options': ['Never', 'Rarely', 'Sometimes', 'Frequently'],
+    },
+    {
+      'question': 'How would you rate your mood recently?',
+      'options': ['Good', 'Neutral', 'Bad', 'Very Bad'],
+    },
+    {
+      'question': 'Do you feel overwhelmed by daily tasks?',
+      'options': ['Never', 'Rarely', 'Sometimes', 'Often'],
+    },
+    {
+      'question': 'How often do you feel anxious or nervous?',
+      'options': ['Never', 'Sometimes', 'Often', 'All the time'],
+    },
+    {
+      'question': 'Do you find it hard to concentrate?',
+      'options': ['Never', 'Rarely', 'Sometimes', 'Often'],
+    },
+    {
+      'question': 'How often do you feel lonely?',
+      'options': ['Never', 'Sometimes', 'Often', 'Always'],
+    },
+    {
+      'question': 'Do you feel satisfied with your personal relationships?',
+      'options': ['Very Satisfied', 'Somewhat', 'Not Much', 'Not at All'],
+    },
+    {
+      'question': 'Do you feel hopeful about the future?',
+      'options': ['Always', 'Often', 'Rarely', 'Never'],
+    },
+    {
+      'question': 'How often do you engage in activities you enjoy?',
+      'options': ['Daily', 'Few times a week', 'Rarely', 'Never'],
+    },
+  ];
 
   // Add these methods for Firebase operations
   Future<void> _loadMoodDataFromFirebase() async {
@@ -51,7 +95,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _moodData.clear();
         for (var doc in querySnapshot.docs) {
           final data = doc.data();
-          print('Loading mood: ${doc.id} -> ${data}');
+          print('Loading mood: ${doc.id} -> $data');
           _moodData[doc.id] = {
             'moodIndex': data['moodIndex'],
             'date': (data['date'] as Timestamp).toDate(),
@@ -84,8 +128,7 @@ class _HomeScreenState extends State<HomeScreen> {
     DateTime date, {
     String category = 'General',
     String description = '',
-    }) async {
-
+  }) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       print('No user logged in, cannot save mood data');
@@ -649,346 +692,353 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showMoodSelectionDialog(BuildContext context, DateTime selectedDate) {
-  final isToday =
-      selectedDate.year == DateTime.now().year &&
-      selectedDate.month == DateTime.now().month &&
-      selectedDate.day == DateTime.now().day;
+    final isToday =
+        selectedDate.year == DateTime.now().year &&
+        selectedDate.month == DateTime.now().month &&
+        selectedDate.day == DateTime.now().day;
 
-  // Check if we already have mood data for this date
-  final moodKey = _getMoodKey(selectedDate);
-  final existingData = _moodData[moodKey];
-  
-  // Initialize values with existing data or defaults
-  int selectedMoodIndex = existingData?['moodIndex'] ?? 2; // Default to "Neutral"
-  String selectedCategory = existingData?['category'] ?? 'General';
-  String description = existingData?['description'] ?? '';
+    // Check if we already have mood data for this date
+    final moodKey = _getMoodKey(selectedDate);
+    final existingData = _moodData[moodKey];
 
-  showDialog(
-    context: context,
-    builder: (context) {
-      final TextEditingController descriptionController = 
-          TextEditingController(text: description);
+    // Initialize values with existing data or defaults
+    int selectedMoodIndex =
+        existingData?['moodIndex'] ?? 2; // Default to "Neutral"
+    String selectedCategory = existingData?['category'] ?? 'General';
+    String description = existingData?['description'] ?? '';
 
-      return StatefulBuilder(
-        builder: (context, setDialogState) {
-          return Dialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Close button and date
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: () => Navigator.pop(context),
-                          padding: EdgeInsets.zero,
+    showDialog(
+      context: context,
+      builder: (context) {
+        final TextEditingController descriptionController =
+            TextEditingController(text: description);
+
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Close button and date
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: () => Navigator.pop(context),
+                            padding: EdgeInsets.zero,
+                          ),
+                          Text(
+                            isToday
+                                ? 'Today, ${DateFormat('MMM d').format(selectedDate)}'
+                                : DateFormat('MMM d').format(selectedDate),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                          const SizedBox(width: 48), // For balance
+                        ],
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // Question
+                      Text(
+                        isToday
+                            ? 'How do you feel today?'
+                            : 'How did you feel?',
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
                         ),
-                        Text(
-                          isToday
-                              ? 'Today, ${DateFormat('MMM d').format(selectedDate)}'
-                              : DateFormat('MMM d').format(selectedDate),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
+                        textAlign: TextAlign.center,
+                      ),
+
+                      const SizedBox(height: 30),
+
+                      // Mood emoji
+                      Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          color: _getMoodColor(selectedMoodIndex),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: Text(
+                            _getMoodEmoji(selectedMoodIndex),
+                            style: const TextStyle(fontSize: 50),
                           ),
                         ),
-                        const SizedBox(width: 48), // For balance
-                      ],
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // Question
-                    Text(
-                      isToday
-                          ? 'How do you feel today?'
-                          : 'How did you feel?',
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
                       ),
-                      textAlign: TextAlign.center,
-                    ),
 
-                    const SizedBox(height: 30),
+                      const SizedBox(height: 16),
 
-                    // Mood emoji
-                    Container(
-                      width: 100,
-                      height: 100,
-                      decoration: BoxDecoration(
-                        color: _getMoodColor(selectedMoodIndex),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Center(
-                        child: Text(
-                          _getMoodEmoji(selectedMoodIndex),
-                          style: const TextStyle(fontSize: 50),
+                      // Mood label
+                      Text(
+                        _getMoodLabel(selectedMoodIndex),
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                    ),
 
-                    const SizedBox(height: 16),
+                      const SizedBox(height: 30),
 
-                    // Mood label
-                    Text(
-                      _getMoodLabel(selectedMoodIndex),
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-
-                    const SizedBox(height: 30),
-
-                    // Mood selector
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: List.generate(5, (index) {
-                        return GestureDetector(
-                          onTap: () {
-                            setDialogState(() {
-                              selectedMoodIndex = index;
-                            });
-                          },
-                          child: Container(
-                            width: 45,
-                            height: 45,
-                            decoration: BoxDecoration(
-                              color: _getMoodColor(index),
-                              shape: BoxShape.circle,
-                              border: selectedMoodIndex == index
-                                  ? Border.all(
-                                      color: Colors.white,
-                                      width: 3,
-                                    )
-                                  : null,
+                      // Mood selector
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: List.generate(5, (index) {
+                          return GestureDetector(
+                            onTap: () {
+                              setDialogState(() {
+                                selectedMoodIndex = index;
+                              });
+                            },
+                            child: Container(
+                              width: 45,
+                              height: 45,
+                              decoration: BoxDecoration(
+                                color: _getMoodColor(index),
+                                shape: BoxShape.circle,
+                                border:
+                                    selectedMoodIndex == index
+                                        ? Border.all(
+                                          color: Colors.white,
+                                          width: 3,
+                                        )
+                                        : null,
+                              ),
+                              child: Center(
+                                child: Text(
+                                  _getMoodEmoji(index),
+                                  style: const TextStyle(fontSize: 22),
+                                ),
+                              ),
                             ),
-                            child: Center(
-                              child: Text(
-                                _getMoodEmoji(index),
-                                style: const TextStyle(fontSize: 22),
+                          );
+                        }),
+                      ),
+
+                      const SizedBox(height: 30),
+
+                      // Category selection
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Category',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey.shade700,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          DropdownButtonFormField<String>(
+                            value: selectedCategory,
+                            items: const [
+                              DropdownMenuItem(
+                                value: 'General',
+                                child: Text('General'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'Work',
+                                child: Text('Work'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'School',
+                                child: Text('School'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'Home',
+                                child: Text('Home'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'Relationships',
+                                child: Text('Relationships'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'Health',
+                                child: Text('Health'),
+                              ),
+                            ],
+                            onChanged: (value) {
+                              setDialogState(() {
+                                selectedCategory = value!;
+                              });
+                            },
+                            decoration: InputDecoration(
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
                               ),
                             ),
                           ),
-                        );
-                      }),
-                    ),
+                        ],
+                      ),
 
-                    const SizedBox(height: 30),
+                      const SizedBox(height: 20),
 
-                    // Category selection
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Category',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey.shade700,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        DropdownButtonFormField<String>(
-                          value: selectedCategory,
-                          items: const [
-                            DropdownMenuItem(
-                              value: 'General',
-                              child: Text('General'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'Work',
-                              child: Text('Work'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'School',
-                              child: Text('School'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'Home',
-                              child: Text('Home'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'Relationships',
-                              child: Text('Relationships'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'Health',
-                              child: Text('Health'),
-                            ),
-                          ],
-                          onChanged: (value) {
-                            setDialogState(() {
-                              selectedCategory = value!;
-                            });
-                          },
-                          decoration: InputDecoration(
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
+                      // Description field
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Description (optional)',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey.shade700,
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // Description field
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Description (optional)',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey.shade700,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        TextField(
-                          controller: descriptionController,
-                          maxLines: 3,
-                          decoration: InputDecoration(
-                            hintText: 'Add any notes about your mood...',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: descriptionController,
+                            maxLines: 3,
+                            decoration: InputDecoration(
+                              hintText: 'Add any notes about your mood...',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              contentPadding: const EdgeInsets.all(16),
                             ),
-                            contentPadding: const EdgeInsets.all(16),
                           ),
-                        ),
-                      ],
-                    ),
-                    
-                    const SizedBox(height: 30),
+                        ],
+                      ),
 
-                    // Action buttons
-                    Row(
-                      children: [
-                        // Add a delete button if there's existing data
-                        if (existingData != null)
+                      const SizedBox(height: 30),
+
+                      // Action buttons
+                      Row(
+                        children: [
+                          // Add a delete button if there's existing data
+                          if (existingData != null)
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () async {
+                                  // Remove from local state
+                                  setState(() {
+                                    _moodData.remove(moodKey);
+                                  });
+
+                                  // Remove from Firebase
+                                  final user =
+                                      FirebaseAuth.instance.currentUser;
+                                  if (user != null) {
+                                    await FirebaseFirestore.instance
+                                        .collection('users')
+                                        .doc(user.uid)
+                                        .collection('moods')
+                                        .doc(moodKey)
+                                        .delete();
+                                  }
+
+                                  Navigator.pop(context);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Mood entry deleted'),
+                                      backgroundColor: Colors.green,
+                                    ),
+                                  );
+                                },
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 16,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child: const Text(
+                                  'Delete',
+                                  style: TextStyle(
+                                    color: Colors.red,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          if (existingData != null) const SizedBox(width: 16),
                           Expanded(
-                            child: OutlinedButton(
+                            flex: existingData != null ? 1 : 2,
+                            child: ElevatedButton(
                               onPressed: () async {
-                                // Remove from local state
+                                // Save mood data locally first
                                 setState(() {
-                                  _moodData.remove(moodKey);
+                                  _moodData[moodKey] = {
+                                    'moodIndex': selectedMoodIndex,
+                                    'date': selectedDate,
+                                    'category': selectedCategory,
+                                    'description': descriptionController.text,
+                                  };
                                 });
-                                
-                                // Remove from Firebase
-                                final user = FirebaseAuth.instance.currentUser;
-                                if (user != null) {
-                                  await FirebaseFirestore.instance
-                                    .collection('users')
-                                    .doc(user.uid)
-                                    .collection('moods')
-                                    .doc(moodKey)
-                                    .delete();
-                                }
-                                
+
                                 Navigator.pop(context);
+
+                                // Show immediate confirmation
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Mood entry deleted'),
+                                  SnackBar(
+                                    content: Text(
+                                      existingData != null
+                                          ? 'Mood updated: ${_getMoodLabel(selectedMoodIndex)}'
+                                          : 'Mood saved: ${_getMoodLabel(selectedMoodIndex)}',
+                                    ),
                                     backgroundColor: Colors.green,
+                                    duration: const Duration(seconds: 2),
                                   ),
                                 );
+
+                                // Save to Firebase in background
+                                await _saveMoodToFirebase(
+                                  moodKey,
+                                  selectedMoodIndex,
+                                  selectedDate,
+                                  category: selectedCategory,
+                                  description: descriptionController.text,
+                                );
                               },
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 16),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.green,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
-                              child: const Text(
-                                'Delete',
-                                style: TextStyle(
-                                  color: Colors.red,
+                              child: Text(
+                                existingData != null ? 'Update' : 'Save',
+                                style: const TextStyle(
+                                  fontSize: 16,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
                             ),
                           ),
-                        if (existingData != null) const SizedBox(width: 16),
-                        Expanded(
-                          flex: existingData != null ? 1 : 2,
-                          child: ElevatedButton(
-                            onPressed: () async {
-                              // Save mood data locally first
-                              setState(() {
-                                _moodData[moodKey] = {
-                                  'moodIndex': selectedMoodIndex,
-                                  'date': selectedDate,
-                                  'category': selectedCategory,
-                                  'description': descriptionController.text,
-                                };
-                              });
-
-                              Navigator.pop(context);
-
-                              // Show immediate confirmation
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    existingData != null 
-                                      ? 'Mood updated: ${_getMoodLabel(selectedMoodIndex)}'
-                                      : 'Mood saved: ${_getMoodLabel(selectedMoodIndex)}',
-                                  ),
-                                  backgroundColor: Colors.green,
-                                  duration: const Duration(seconds: 2),
-                                ),
-                              );
-
-                              // Save to Firebase in background
-                              await _saveMoodToFirebase(
-                                moodKey,
-                                selectedMoodIndex,
-                                selectedDate,
-                                category: selectedCategory,
-                                description: descriptionController.text,
-                              );
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            child: Text(
-                              existingData != null ? 'Update' : 'Save',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          );
-        },
-      );
-    },
-  );
-}
+            );
+          },
+        );
+      },
+    );
+  }
 
   Widget _buildAnalysisPage(BuildContext context) {
     return const Center(
@@ -1004,7 +1054,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildMentalHealthTestPage(BuildContext context) {
     return SafeArea(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1052,11 +1102,12 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: ElevatedButton(
                         onPressed: () {
                           // Start the assessment
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Assessment feature coming soon!'),
-                            ),
-                          );
+                          _showAssessmentDialog(context);
+                          // ScaffoldMessenger.of(context).showSnackBar(
+                          //   const SnackBar(
+                          //     content: Text('Assessment feature coming soon!'),
+                          //   ),
+                          // );
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.green,
@@ -1080,51 +1131,583 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 24),
 
             // Previous results section
-            Text(
-              'Previous Results',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Previous Results',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.refresh),
+                  tooltip: 'Reload',
+                  onPressed: () {
+                    setState(
+                      () {},
+                    ); // Triggers a rebuild and refreshes the FutureBuilder
+                  },
+                ),
+              ],
             ),
             const SizedBox(height: 16),
 
-            // Empty state or sample results
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.all(32.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.assessment_outlined,
-                      size: 64,
-                      color: Colors.grey.shade400,
+            FutureBuilder<List<QueryDocumentSnapshot>>(
+              future: _getUserAssessments(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Text(
+                      'Error loading results',
+                      style: TextStyle(color: Colors.red.shade700),
                     ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'No assessments taken yet',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.grey.shade600,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Complete your first assessment to see results here',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey.shade500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+                  );
+                }
+
+                final assessments = snapshot.data ?? [];
+
+                if (assessments.isEmpty) {
+                  return _buildEmptyState();
+                }
+
+                return _buildAssessmentList(assessments);
+              },
             ),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.assessment_outlined,
+              size: 64,
+              color: Colors.grey.shade400,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No assessments taken yet',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey.shade600,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Complete your first assessment to see results here',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAssessmentList(List<QueryDocumentSnapshot> assessments) {
+    return ListView.separated(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: assessments.length,
+      separatorBuilder: (context, index) => const SizedBox(height: 12),
+      itemBuilder: (context, index) {
+        final assessment = assessments[index].data() as Map<String, dynamic>;
+        final timestamp = assessment['timestamp'] as Timestamp?;
+        final shared = assessment['shared_with_counselor'] ?? false;
+        final answers = assessment['answers'] as List<dynamic>;
+
+        return Card(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () => _showAssessmentDetails(context, assessment),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Assessment ${index + 1}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      if (shared)
+                        const Icon(Icons.share, color: Colors.green, size: 18),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  if (timestamp != null)
+                    Text(
+                      DateFormat(
+                        'MMM dd, yyyy - hh:mm a',
+                      ).format(timestamp.toDate()),
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontSize: 12,
+                      ),
+                    ),
+                  const SizedBox(height: 12),
+                  Text(
+                    '${answers.length} questions answered',
+                    style: TextStyle(color: Colors.grey.shade700),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showAssessmentDetails(
+    BuildContext context,
+    Map<String, dynamic> assessment,
+  ) {
+    final answers = assessment['answers'] as List<dynamic>;
+    final timestamp = assessment['timestamp'] as Timestamp?;
+    final shared = assessment['shared_with_counselor'] ?? false;
+
+    showDialog(
+      context: context,
+      builder:
+          (context) => Dialog(
+            insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Container(
+              width: MediaQuery.of(context).size.width * 0.9,
+              height: MediaQuery.of(context).size.height * 0.7, // 固定高度
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Assessment Details',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (timestamp != null)
+                            Text(
+                              'Date: ${DateFormat('MMM dd, yyyy - hh:mm a').format(timestamp.toDate())}',
+                              style: TextStyle(color: Colors.grey.shade600),
+                            ),
+                          if (shared)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.share,
+                                    color: Colors.green,
+                                    size: 16,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Shared with counselor',
+                                    style: TextStyle(
+                                      color: Colors.green.shade700,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          const SizedBox(height: 16),
+                          ...answers.map(
+                            (qa) => Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    qa['question'],
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    qa['answer'] ?? 'No answer',
+                                    style: TextStyle(
+                                      color: Colors.grey.shade700,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  const Divider(height: 1),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Close'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+    );
+  }
+
+  void _showAssessmentDialog(BuildContext context) {
+    int currentIndex = 0;
+    List<String?> selectedAnswers = List.filled(questions.length, null);
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            final currentQuestion = questions[currentIndex];
+
+            return Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              insetPadding: const EdgeInsets.symmetric(
+                horizontal: 24,
+                vertical: 32,
+              ),
+              backgroundColor: Colors.white,
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.psychology_alt_rounded,
+                          color: Colors.green,
+                          size: 28,
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          'Question ${currentIndex + 1} of ${questions.length}',
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Question
+                    Text(
+                      currentQuestion['question'],
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Options
+                    ...List<Widget>.generate(
+                      currentQuestion['options'].length,
+                      (index) {
+                        final option = currentQuestion['options'][index];
+                        return Container(
+                          margin: const EdgeInsets.symmetric(vertical: 4),
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color:
+                                  selectedAnswers[currentIndex] == option
+                                      ? Colors.green
+                                      : Colors.grey.shade300,
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: RadioListTile<String>(
+                            value: option,
+                            groupValue: selectedAnswers[currentIndex],
+                            onChanged: (value) {
+                              setState(() {
+                                selectedAnswers[currentIndex] = value;
+                              });
+                            },
+                            title: Text(option),
+                            activeColor: Colors.green,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // Navigation buttons
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        TextButton.icon(
+                          onPressed: () {
+                            if (currentIndex == 0) {
+                              Navigator.of(context).pop();
+                            } else {
+                              setState(() => currentIndex--);
+                            }
+                          },
+                          icon: Icon(
+                            currentIndex == 0 ? Icons.close : Icons.arrow_back,
+                            color: Colors.grey[700],
+                          ),
+                          label: Text(currentIndex == 0 ? 'Cancel' : 'Back'),
+                        ),
+                        ElevatedButton.icon(
+                          onPressed:
+                              selectedAnswers[currentIndex] == null
+                                  ? null
+                                  : () {
+                                    if (currentIndex < questions.length - 1) {
+                                      setState(() => currentIndex++);
+                                    } else {
+                                      Navigator.of(context).pop();
+                                      _showFinishDialog(
+                                        context,
+                                        selectedAnswers,
+                                      );
+                                    }
+                                  },
+                          icon: Icon(
+                            currentIndex < questions.length - 1
+                                ? Icons.arrow_forward
+                                : Icons.check,
+                          ),
+                          label: Text(
+                            currentIndex < questions.length - 1
+                                ? 'Next'
+                                : 'Finish',
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 12,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showFinishDialog(
+    BuildContext context,
+    List<String?> selectedAnswers,
+  ) async {
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please login to save your assessment results.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    print('user id: ${user.uid}');
+
+    final assessmentData = {
+      'userId': user.uid,
+      'timestamp': FieldValue.serverTimestamp(),
+      'answers': List.generate(
+        questions.length,
+        (i) => {
+          'question': questions[i]['question'],
+          'answer': selectedAnswers[i],
+        },
+      ),
+    };
+
+    final shouldShare = await showDialog<bool>(
+      context: context,
+      builder:
+          (context) => StatefulBuilder(
+            builder: (context, setState) {
+              return Dialog(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                insetPadding: const EdgeInsets.symmetric(
+                  horizontal: 32,
+                  vertical: 40,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Icon(Icons.send_rounded, color: Colors.green, size: 48),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Send Results to Counselor?',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Would you like to share your assessment results...',
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed: () => Navigator.pop(context, false),
+                            icon: const Icon(Icons.cancel, color: Colors.grey),
+                            label: const Text('No, Thanks'),
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(color: Colors.grey.shade400),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                            ),
+                          ),
+                          ElevatedButton.icon(
+                            onPressed: () => Navigator.pop(context, true),
+                            icon: const Icon(
+                              Icons.check_circle,
+                              color: Colors.white,
+                            ),
+                            label: const Text('Yes, Send'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 12,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+    );
+
+    // Save data into firestore
+    try {
+      final finalData = {
+        ...assessmentData,
+        'shared_with_counselor': shouldShare ?? false,
+      };
+
+      await FirebaseFirestore.instance
+          .collection('user_assessments')
+          .add(finalData);
+
+      final message =
+          shouldShare == true
+              ? '✅ Your results were successfully shared with your counselor.'
+              : '💾 Your results were saved privately and not shared.';
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: Colors.green),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Save failed: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<List<QueryDocumentSnapshot>> _getUserAssessments() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return [];
+
+    try {
+      final querySnapshot =
+          await FirebaseFirestore.instance
+              .collection('user_assessments')
+              .where('userId', isEqualTo: user.uid)
+              .orderBy('timestamp', descending: true)
+              .get();
+
+      return querySnapshot.docs;
+    } catch (e) {
+      print('Error fetching assessments: $e');
+      return [];
+    }
   }
 }

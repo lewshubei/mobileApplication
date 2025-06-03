@@ -52,6 +52,7 @@ class _LoginScreenState extends State<LoginScreen> {
         // Update user provider with the logged-in user
         final userProvider = Provider.of<UserProvider>(context, listen: false);
         userProvider.setUser(userCredential.user);
+        await userProvider.refreshUser();
 
         // Fetch the role of the user from Firestore
         final fetchedRole = await _userService.getUserRole(

@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -16,6 +17,7 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   bool _isEditing = false;
   bool _isSaving = false;
   late TextEditingController _nameController;
@@ -200,6 +202,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  String? _validatePhoneNumber(String? value) {
+    final cleaned = value?.replaceAll(RegExp(r'\D'), '') ?? '';
+
+    // If length is insufficient or does not start with '01', it's invalid
+    if (!cleaned.startsWith('01') || cleaned.length < 10) {
+      return 'Please enter a valid Malaysian phone number.';
+    }
+
+    // If number starts with 011 (should be 11 digits)
+    if (cleaned.startsWith('011')) {
+      if (cleaned.length != 11) {
+        return 'Phone numbers starting with 011 must have 11 digits.';
+      }
+    } else {
+      // Other 01X numbers must have exactly 10 digits
+      if (cleaned.length != 10) {
+        return 'This phone number must have exactly 10 digits.';
+      }
+
+      // Check if the prefix is a valid Malaysian telco code
+      final validPrefixes = [
+        '010',
+        '012',
+        '013',
+        '014',
+        '016',
+        '017',
+        '018',
+        '019',
+      ];
+      final prefix = cleaned.substring(0, 3);
+      if (!validPrefixes.contains(prefix)) {
+        return 'Please enter a valid Malaysian mobile number.';
+      }
+    }
+
+    return null; // Passed validation
+  }
+
   @override
   Widget build(BuildContext context) {
     final userProvider = Provider.of<UserProvider>(context);
@@ -362,12 +403,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       child: Padding(
         padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            _buildEditInfoRow(Icons.person, 'Name', _nameController),
-            const Divider(height: 30, thickness: 0.5),
-            _buildEditInfoRow(Icons.phone, 'Phone Number', _phoneController),
-          ],
+        child: Form(
+          key: _formKey,
+          child: Column(
+            children: [
+              _buildEditInfoRow(Icons.person, 'Name', _nameController),
+              const Divider(height: 30, thickness: 0.5),
+              _buildEditInfoRow(Icons.phone, 'Phone Number', _phoneController),
+            ],
+          ),
         ),
       ),
     );
@@ -391,7 +435,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 style: const TextStyle(fontSize: 12, color: Colors.grey),
               ),
               const SizedBox(height: 4),
-              TextField(
+              TextFormField(
                 controller: controller,
                 style: const TextStyle(
                   fontSize: 16,
@@ -402,6 +446,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   contentPadding: EdgeInsets.zero,
                   border: InputBorder.none,
                 ),
+                keyboardType:
+                    label == 'Phone Number'
+                        ? TextInputType.phone
+                        : TextInputType.text,
+                inputFormatters:
+                    label == 'Phone Number'
+                        ? [FilteringTextInputFormatter.digitsOnly]
+                        : [],
+                validator:
+                    label == 'Phone Number' ? _validatePhoneNumber : null,
               ),
             ],
           ),
@@ -439,7 +493,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const SizedBox(height: 12),
             OutlinedButton(
               onPressed:
-                  _isSaving ? null : () => setState(() => _isEditing = false),
+                  _isSaving
+                      ? null
+                      : () {
+                        final user = FirebaseAuth.instance.currentUser;
+                        setState(() {
+                          _nameController.text = user?.displayName ?? '';
+                          _phoneController.text =
+                              userProvider.phoneNumber ?? '';
+                          _isEditing = false;
+                        });
+                      },
               style: OutlinedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 50),
                 side: BorderSide(color: Colors.red.shade600),
@@ -469,6 +533,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _saveChanges(UserProvider userProvider) async {
     setState(() => _isSaving = true);
+
+    if (!_formKey.currentState!.validate()) {
+      setState(() => _isSaving = false);
+      return;
+    }
+
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
@@ -520,7 +590,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _buildInfoRow(
               Icons.phone,
               'Phone Number',
-              currentUser?.phoneNumber ?? userProvider.phoneNumber ?? '-',
+              userProvider.phoneNumber ?? '-',
             ),
           ],
         ),
