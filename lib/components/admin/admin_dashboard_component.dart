@@ -31,7 +31,7 @@ class AdminDashboardComponent extends StatelessWidget {
               // Process users data if available
               if (usersSnapshot.hasData) {
                 final users = usersSnapshot.data!.docs;
-                totalUsers = users.length;
+                totalUsers = users.length - 1;
 
                 for (var doc in users) {
                   final data = doc.data() as Map<String, dynamic>;
@@ -196,7 +196,7 @@ class AdminDashboardComponent extends StatelessWidget {
 
                     // Assignment Overview
                     Text(
-                      'Assignment Overview',
+                      'Student Assignment Status',
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
                     const SizedBox(height: 16),

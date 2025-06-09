@@ -32,7 +32,7 @@ class AdminHomeScreen extends StatelessWidget {
         appBar: AppBar(
           title: const Text('Admin Dashboard'),
           bottom: const TabBar(
-            tabs: [Tab(text: 'Dashboard'), Tab(text: 'Student Assignments')],
+            tabs: [Tab(text: 'Dashboard'), Tab(text: 'Assign Student')],
           ),
         ),
         drawer: _buildCustomDrawer(context, user, theme),
