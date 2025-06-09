@@ -1,5 +1,5 @@
 // Define user roles as an enum for type safety
-enum UserRole { student, counselor }
+enum UserRole { student, counselor, admin }
 
 // Extension to convert enum to string and back
 extension UserRoleExtension on UserRole {
@@ -9,6 +9,8 @@ extension UserRoleExtension on UserRole {
         return 'student';
       case UserRole.counselor:
         return 'counselor';
+      case UserRole.admin:
+        return 'admin';
     }
   }
 
@@ -18,6 +20,8 @@ extension UserRoleExtension on UserRole {
         return 'Student';
       case UserRole.counselor:
         return 'Counselor';
+      case UserRole.admin:
+        return 'Admin';
     }
   }
 
@@ -25,6 +29,8 @@ extension UserRoleExtension on UserRole {
     switch (role.toLowerCase()) {
       case 'counselor':
         return UserRole.counselor;
+      case 'admin':
+        return UserRole.admin;
       case 'student':
       default:
         return UserRole.student;

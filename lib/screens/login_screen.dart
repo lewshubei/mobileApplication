@@ -9,6 +9,7 @@ import 'package:sentimo/services/user_service.dart';
 import 'package:sentimo/screens/forgot_password_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:sentimo/providers/user_provider.dart';
+import 'package:sentimo/screens/admin_home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -145,6 +146,10 @@ class _LoginScreenState extends State<LoginScreen> {
       if (role == UserRole.counselor) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (context) => const CounselorHomeScreen()),
+        );
+      } else if (role == UserRole.admin) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const AdminHomeScreen()),
         );
       } else {
         Navigator.of(context).pushReplacement(
