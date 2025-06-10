@@ -9,10 +9,10 @@ class MentalHealthAssessmentComponent extends StatelessWidget {
   final Function(BuildContext) signOutCallback;
 
   const MentalHealthAssessmentComponent({
-    Key? key,
+    super.key,
     required this.user,
     required this.signOutCallback,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -25,15 +25,16 @@ class MentalHealthAssessmentComponent extends StatelessWidget {
         child: Text('You need to be logged in to view assessments'),
       );
     }
-    
+
     // Try to get user role first to avoid permission issues
     return FutureBuilder<DocumentSnapshot>(
-      future: FirebaseFirestore.instance.collection('users').doc(user.uid).get(),
+      future:
+          FirebaseFirestore.instance.collection('users').doc(user.uid).get(),
       builder: (context, userSnapshot) {
         if (userSnapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
-        
+
         if (userSnapshot.hasError) {
           return Center(
             child: Padding(
@@ -59,10 +60,10 @@ class MentalHealthAssessmentComponent extends StatelessWidget {
             ),
           );
         }
-        
+
         final userData = userSnapshot.data?.data() as Map<String, dynamic>?;
         final String userRole = userData?['role'] ?? 'unknown';
-        
+
         if (userRole != 'counselor') {
           return Center(
             child: Padding(
@@ -86,14 +87,15 @@ class MentalHealthAssessmentComponent extends StatelessWidget {
             ),
           );
         }
-        
+
         // Now that we've verified the user is a counselor, fetch the assessments
         return StreamBuilder<QuerySnapshot>(
-          stream: FirebaseFirestore.instance
-              .collection('user_assessments')
-              .where('shared_with_counselor', isEqualTo: true)
-              .orderBy('timestamp', descending: true)
-              .snapshots(),
+          stream:
+              FirebaseFirestore.instance
+                  .collection('user_assessments')
+                  .where('shared_with_counselor', isEqualTo: true)
+                  .orderBy('timestamp', descending: true)
+                  .snapshots(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
@@ -106,11 +108,18 @@ class MentalHealthAssessmentComponent extends StatelessWidget {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                      const Icon(
+                        Icons.error_outline,
+                        size: 48,
+                        color: Colors.red,
+                      ),
                       const SizedBox(height: 16),
                       const Text(
                         'Permission Error',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       Text(
@@ -129,17 +138,24 @@ class MentalHealthAssessmentComponent extends StatelessWidget {
             }
 
             final assessments = snapshot.data?.docs ?? [];
-            
+
             if (assessments.isEmpty) {
               return Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.assessment, size: 64, color: Colors.grey.shade400),
+                    Icon(
+                      Icons.assessment,
+                      size: 64,
+                      color: Colors.grey.shade400,
+                    ),
                     const SizedBox(height: 16),
                     const Text(
                       'No Assessments Available',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     const Text(
@@ -157,12 +173,16 @@ class MentalHealthAssessmentComponent extends StatelessWidget {
               itemBuilder: (context, index) {
                 try {
                   final assessmentDoc = assessments[index];
-                  final assessment = assessmentDoc.data() as Map<String, dynamic>;
-                  final DateTime timestamp = (assessment['timestamp'] as Timestamp).toDate();
+                  final assessment =
+                      assessmentDoc.data() as Map<String, dynamic>;
+                  final DateTime timestamp =
+                      (assessment['timestamp'] as Timestamp).toDate();
                   final String userId = assessment['userId'] as String;
-                  
+
                   // Format timestamp to a readable string
-                  final String formattedDate = DateFormat('dd/MM/yyyy HH:mm').format(timestamp);
+                  final String formattedDate = DateFormat(
+                    'dd/MM/yyyy HH:mm',
+                  ).format(timestamp);
 
                   return _buildAssessmentListItem(
                     context,
@@ -197,7 +217,7 @@ class MentalHealthAssessmentComponent extends StatelessWidget {
         // Default student name placeholder
         String studentName = 'Loading...';
         String initial = 'S';
-        
+
         if (userSnapshot.connectionState == ConnectionState.waiting) {
           // Show loading placeholder while waiting for data
           studentName = 'Loading...';
@@ -207,27 +227,31 @@ class MentalHealthAssessmentComponent extends StatelessWidget {
         } else if (userSnapshot.hasData && userSnapshot.data != null) {
           // Extract student name from user data
           final userData = userSnapshot.data!.data() as Map<String, dynamic>?;
-          
+
           // Try multiple possible name fields, prioritizing 'name'
-          studentName = userData?['name'] ?? 
-                       userData?['displayName'] ?? 
-                       userData?['fullName'] ??
-                       (userData?['firstName'] != null ? '${userData?['firstName']} ${userData?['lastName'] ?? ''}' : 'Student ${userId.substring(0, 4)}');
-          
+          studentName =
+              userData?['name'] ??
+              userData?['displayName'] ??
+              userData?['fullName'] ??
+              (userData?['firstName'] != null
+                  ? '${userData?['firstName']} ${userData?['lastName'] ?? ''}'
+                  : 'Student ${userId.substring(0, 4)}');
+
           // Get the initial for the avatar
           if (studentName.trim().isNotEmpty) {
             initial = studentName.trim()[0].toUpperCase();
           }
         }
-        
+
         return Card(
           elevation: 1,
           margin: const EdgeInsets.only(bottom: 10),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 8,
+            ),
             leading: CircleAvatar(
               backgroundColor: Colors.teal.shade100,
               child: Text(
@@ -248,10 +272,11 @@ class MentalHealthAssessmentComponent extends StatelessWidget {
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (context) => AssessmentDetailScreen(
-                    assessmentId: assessmentDoc.id,
-                    studentId: userId,
-                  ),
+                  builder:
+                      (context) => AssessmentDetailScreen(
+                        assessmentId: assessmentDoc.id,
+                        studentId: userId,
+                      ),
                 ),
               );
             },

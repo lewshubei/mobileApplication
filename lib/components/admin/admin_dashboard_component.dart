@@ -520,7 +520,7 @@ class AdminDashboardComponent extends StatelessWidget {
 }
 
 extension on Color {
-  get shade700 => null;
-
   get shade900 => null;
+
+  get shade700 => null;
 }

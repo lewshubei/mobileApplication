@@ -9,10 +9,10 @@ class AssessmentDetailScreen extends StatefulWidget {
   final String studentId;
 
   const AssessmentDetailScreen({
-    Key? key,
+    super.key,
     required this.assessmentId,
     required this.studentId,
-  }) : super(key: key);
+  });
 
   @override
   State<AssessmentDetailScreen> createState() => _AssessmentDetailScreenState();
@@ -31,11 +31,12 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
   Future<void> _loadCurrentAssignment() async {
     try {
       // Get current assignment from user_assignments collection or the user document itself
-      final userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(widget.studentId)
-          .get();
-      
+      final userDoc =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(widget.studentId)
+              .get();
+
       if (userDoc.exists) {
         final userData = userDoc.data();
         if (userData != null && userData.containsKey('assignedCounselorId')) {
@@ -49,38 +50,39 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
     }
   }
 
-  Future<void> _assignCounselor(String counselorId, String counselorName) async {
+  Future<void> _assignCounselor(
+    String counselorId,
+    String counselorName,
+  ) async {
     setState(() {
       isAssigning = true;
     });
-    
+
     try {
       // Update the user document with the assigned counselor
       await FirebaseFirestore.instance
           .collection('users')
           .doc(widget.studentId)
           .update({
-        'assignedCounselorId': counselorId,
-        'assignedCounselorName': counselorName,
-        'assignmentDate': FieldValue.serverTimestamp(),
-      });
-      
+            'assignedCounselorId': counselorId,
+            'assignedCounselorName': counselorName,
+            'assignmentDate': FieldValue.serverTimestamp(),
+          });
+
       // Optionally, create an assignment record in a separate collection
-      await FirebaseFirestore.instance
-          .collection('counselor_assignments')
-          .add({
+      await FirebaseFirestore.instance.collection('counselor_assignments').add({
         'studentId': widget.studentId,
         'counselorId': counselorId,
         'counselorName': counselorName,
         'assessmentId': widget.assessmentId,
         'assignmentDate': FieldValue.serverTimestamp(),
       });
-      
+
       setState(() {
         selectedCounselorId = counselorId;
         isAssigning = false;
       });
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Student assigned to $counselorName')),
       );
@@ -88,19 +90,17 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
       setState(() {
         isAssigning = false;
       });
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error assigning counselor: $e')),
-      );
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error assigning counselor: $e')));
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Assessment Details'),
-      ),
+      appBar: AppBar(title: const Text('Assessment Details')),
       body: _buildBody(context),
     );
   }
@@ -121,14 +121,20 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
 
   Widget _buildStudentSection(BuildContext context) {
     return FutureBuilder<DocumentSnapshot>(
-      future: FirebaseFirestore.instance.collection('users').doc(widget.studentId).get(),
+      future:
+          FirebaseFirestore.instance
+              .collection('users')
+              .doc(widget.studentId)
+              .get(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return SizedBox(
             width: double.infinity,
             child: Card(
               elevation: 2,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               child: const Padding(
                 padding: EdgeInsets.all(16.0),
                 child: Center(child: CircularProgressIndicator()),
@@ -142,7 +148,9 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
             width: double.infinity,
             child: Card(
               elevation: 2,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
@@ -158,25 +166,28 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
         }
 
         final userData = snapshot.data?.data() as Map<String, dynamic>?;
-        
+
         // Based on the provided user data structure, using 'name' field first
-        final String studentName = userData?['name'] ?? 
-                                  userData?['displayName'] ?? 
-                                  'Student ${widget.studentId.substring(0, 4)}';
-        
+        final String studentName =
+            userData?['name'] ??
+            userData?['displayName'] ??
+            'Student ${widget.studentId.substring(0, 4)}';
+
         final String email = userData?['email'] ?? '';
-        
+
         // Extract first initial for avatar
         String initial = 'S';
         if (studentName.trim().isNotEmpty) {
           initial = studentName.trim()[0].toUpperCase();
         }
-        
+
         return SizedBox(
           width: double.infinity,
           child: Card(
             elevation: 2,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
@@ -233,10 +244,11 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
 
   Widget _buildCounselorAssignment(BuildContext context) {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .where('role', isEqualTo: 'counselor')
-          .snapshots(),
+      stream:
+          FirebaseFirestore.instance
+              .collection('users')
+              .where('role', isEqualTo: 'counselor')
+              .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(
@@ -248,33 +260,40 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
         }
 
         if (snapshot.hasError) {
-          return Text('Error loading counselors: ${snapshot.error}',
-              style: TextStyle(color: Colors.red.shade400));
+          return Text(
+            'Error loading counselors: ${snapshot.error}',
+            style: TextStyle(color: Colors.red.shade400),
+          );
         }
 
         final counselors = snapshot.data?.docs ?? [];
-        
+
         if (counselors.isEmpty) {
-          return const Text('No counselors available',
-              style: TextStyle(fontStyle: FontStyle.italic));
+          return const Text(
+            'No counselors available',
+            style: TextStyle(fontStyle: FontStyle.italic),
+          );
         }
 
         String currentAssignmentText = 'Not assigned';
-        
+
         if (selectedCounselorId != null) {
           // Use firstWhereOrNull instead of firstWhere with orElse
           final assignedCounselorDoc = counselors.firstWhereOrNull(
-            (doc) => doc.id == selectedCounselorId
+            (doc) => doc.id == selectedCounselorId,
           );
-          
+
           if (assignedCounselorDoc != null) {
-            final counselorData = assignedCounselorDoc.data() as Map<String, dynamic>?;
+            final counselorData =
+                assignedCounselorDoc.data() as Map<String, dynamic>?;
             if (counselorData != null) {
-              currentAssignmentText = 'Assigned to: ${counselorData['name'] ?? counselorData['displayName'] ?? 'Unknown Counselor'}';
+              currentAssignmentText =
+                  'Assigned to: ${counselorData['name'] ?? counselorData['displayName'] ?? 'Unknown Counselor'}';
             }
           } else {
             // Handle case where counselor ID exists but counselor is not in list
-            currentAssignmentText = 'Assigned to counselor (ID: ${selectedCounselorId!.substring(0, Math.min(4, selectedCounselorId!.length))}...)';
+            currentAssignmentText =
+                'Assigned to counselor (ID: ${selectedCounselorId!.substring(0, Math.min(4, selectedCounselorId!.length))}...)';
           }
         }
 
@@ -284,11 +303,7 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                const Icon(
-                  Icons.person_outline,
-                  size: 20,
-                  color: Colors.grey,
-                ),
+                const Icon(Icons.person_outline, size: 20, color: Colors.grey),
                 const SizedBox(width: 6),
                 Text(
                   'Counselor Assignment',
@@ -308,9 +323,10 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
                     currentAssignmentText,
                     style: TextStyle(
                       fontWeight: FontWeight.w500,
-                      color: selectedCounselorId != null
-                          ? Colors.teal.shade700
-                          : Colors.grey.shade600,
+                      color:
+                          selectedCounselorId != null
+                              ? Colors.teal.shade700
+                              : Colors.grey.shade600,
                     ),
                   ),
                 ),
@@ -340,7 +356,9 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
   }
 
   void _showCounselorSelectionDialog(
-      BuildContext context, List<QueryDocumentSnapshot> counselors) {
+    BuildContext context,
+    List<QueryDocumentSnapshot> counselors,
+  ) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -354,22 +372,27 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
               itemBuilder: (context, index) {
                 final counselor = counselors[index];
                 final counselorData = counselor.data() as Map<String, dynamic>;
-                final counselorName = counselorData['name'] ?? 
-                                     counselorData['displayName'] ?? 
-                                     'Counselor ${counselor.id.substring(0, 4)}';
+                final counselorName =
+                    counselorData['name'] ??
+                    counselorData['displayName'] ??
+                    'Counselor ${counselor.id.substring(0, 4)}';
                 final isCurrentlySelected = counselor.id == selectedCounselorId;
-                
+
                 return ListTile(
                   leading: CircleAvatar(
-                    backgroundColor: isCurrentlySelected 
-                        ? Colors.teal.shade100 
-                        : Colors.grey.shade100,
+                    backgroundColor:
+                        isCurrentlySelected
+                            ? Colors.teal.shade100
+                            : Colors.grey.shade100,
                     child: Text(
-                      counselorName.isNotEmpty ? counselorName[0].toUpperCase() : 'C',
+                      counselorName.isNotEmpty
+                          ? counselorName[0].toUpperCase()
+                          : 'C',
                       style: TextStyle(
-                        color: isCurrentlySelected 
-                            ? Colors.teal.shade700 
-                            : Colors.grey.shade700,
+                        color:
+                            isCurrentlySelected
+                                ? Colors.teal.shade700
+                                : Colors.grey.shade700,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -400,7 +423,11 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
 
   Widget _buildAssessmentSection(BuildContext context) {
     return FutureBuilder<DocumentSnapshot>(
-      future: FirebaseFirestore.instance.collection('user_assessments').doc(widget.assessmentId).get(),
+      future:
+          FirebaseFirestore.instance
+              .collection('user_assessments')
+              .doc(widget.assessmentId)
+              .get(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -422,7 +449,7 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
         }
 
         final assessmentData = snapshot.data?.data() as Map<String, dynamic>?;
-        
+
         if (assessmentData == null) {
           return const Card(
             child: Padding(
@@ -433,8 +460,11 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
         }
 
         final List<dynamic> answers = assessmentData['answers'] ?? [];
-        final DateTime timestamp = (assessmentData['timestamp'] as Timestamp).toDate();
-        final String formattedDate = DateFormat('MMMM dd, yyyy - HH:mm').format(timestamp);
+        final DateTime timestamp =
+            (assessmentData['timestamp'] as Timestamp).toDate();
+        final String formattedDate = DateFormat(
+          'MMMM dd, yyyy - HH:mm',
+        ).format(timestamp);
         final int totalQuestions = answers.length;
 
         return Column(
@@ -445,7 +475,9 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
               width: double.infinity,
               child: Card(
                 elevation: 2,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
@@ -467,32 +499,32 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
                 ),
               ),
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             // Assessment results header
             const Text(
               'Assessment Results',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            
+
             const SizedBox(height: 12),
-            
+
             // Questions and answers - Full width
             ...List.generate(answers.length, (index) {
               final answer = answers[index];
-              final String question = answer['question'] ?? 'Question not available';
+              final String question =
+                  answer['question'] ?? 'Question not available';
               final String answerText = answer['answer'] ?? 'No answer';
               final int questionNumber = index + 1;
-              
+
               return SizedBox(
                 width: double.infinity,
                 child: Card(
                   margin: const EdgeInsets.only(bottom: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: Column(
@@ -534,7 +566,9 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
                         const SizedBox(height: 8),
                         Row(
                           children: [
-                            const SizedBox(width: 38), // Align with question text
+                            const SizedBox(
+                              width: 38,
+                            ), // Align with question text
                             const Text(
                               'Answer: ',
                               style: TextStyle(
@@ -546,7 +580,10 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
                               label: Text(
                                 answerText,
                                 style: TextStyle(
-                                  color: Theme.of(context).textTheme.bodyLarge?.color,
+                                  color:
+                                      Theme.of(
+                                        context,
+                                      ).textTheme.bodyLarge?.color,
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
@@ -561,7 +598,7 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
                 ),
               );
             }),
-            
+
             const SizedBox(height: 16),
           ],
         );

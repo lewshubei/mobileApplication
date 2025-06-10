@@ -9,7 +9,6 @@ import 'package:sentimo/screens/login_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/mood_entry.dart';
 
-
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -1090,7 +1089,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   return Center(
                     child: Column(
                       children: [
-                        Icon(Icons.error_outline, size: 64, color: Colors.red.shade400),
+                        Icon(
+                          Icons.error_outline,
+                          size: 64,
+                          color: Colors.red.shade400,
+                        ),
                         const SizedBox(height: 16),
                         Text(
                           'Error loading mood data',
@@ -1102,9 +1105,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 }
 
                 final allMoodData = snapshot.data ?? [];
-                final filteredData = _selectedStartDate != null && _selectedEndDate != null
-                    ? MoodAnalyzer.filterByDateRange(allMoodData, _selectedStartDate!, _selectedEndDate!)
-                    : allMoodData;
+                final filteredData =
+                    _selectedStartDate != null && _selectedEndDate != null
+                        ? MoodAnalyzer.filterByDateRange(
+                          allMoodData,
+                          _selectedStartDate!,
+                          _selectedEndDate!,
+                        )
+                        : allMoodData;
 
                 if (filteredData.isEmpty) {
                   return _buildEmptyAnalysisState();
@@ -1812,7 +1820,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: _buildDateButton(
-                    'End Date', 
+                    'End Date',
                     _selectedEndDate,
                     () => _selectEndDate(),
                   ),
@@ -1822,9 +1830,15 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 12),
             Row(
               children: [
-                _buildQuickDateButton('Last 7 days', () => _setQuickDateRange(7)),
+                _buildQuickDateButton(
+                  'Last 7 days',
+                  () => _setQuickDateRange(7),
+                ),
                 const SizedBox(width: 8),
-                _buildQuickDateButton('Last 30 days', () => _setQuickDateRange(30)),
+                _buildQuickDateButton(
+                  'Last 30 days',
+                  () => _setQuickDateRange(30),
+                ),
                 const SizedBox(width: 8),
                 _buildQuickDateButton('All time', () => _clearDateRange()),
               ],
@@ -1853,7 +1867,9 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 4),
             Text(
-              date != null ? DateFormat('MMM dd, yyyy').format(date) : 'Select date',
+              date != null
+                  ? DateFormat('MMM dd, yyyy').format(date)
+                  : 'Select date',
               style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
             ),
           ],
@@ -1878,7 +1894,9 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _selectStartDate() async {
     final date = await showDatePicker(
       context: context,
-      initialDate: _selectedStartDate ?? DateTime.now().subtract(const Duration(days: 30)),
+      initialDate:
+          _selectedStartDate ??
+          DateTime.now().subtract(const Duration(days: 30)),
       firstDate: DateTime(2020),
       lastDate: DateTime.now(),
     );
@@ -1922,12 +1940,13 @@ class _HomeScreenState extends State<HomeScreen> {
     if (user == null) return [];
 
     try {
-      final querySnapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .collection('moods')
-          .orderBy('date', descending: false)
-          .get();
+      final querySnapshot =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .collection('moods')
+              .orderBy('date', descending: false)
+              .get();
 
       return querySnapshot.docs.map((doc) {
         return MoodAnalysisData.fromFirestore(doc.id, doc.data());
@@ -1945,11 +1964,7 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.mood_outlined,
-              size: 64,
-              color: Colors.grey.shade400,
-            ),
+            Icon(Icons.mood_outlined, size: 64, color: Colors.grey.shade400),
             const SizedBox(height: 16),
             Text(
               'No mood data found',
@@ -2001,7 +2016,11 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildSummaryCards(List<MoodAnalysisData> data, MoodStats? mostCommon, double average) {
+  Widget _buildSummaryCards(
+    List<MoodAnalysisData> data,
+    MoodStats? mostCommon,
+    double average,
+  ) {
     return Row(
       children: [
         const SizedBox(width: 12),
@@ -2035,7 +2054,12 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildSummaryCard(String title, String value, IconData icon, Color color) {
+  Widget _buildSummaryCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -2045,18 +2069,12 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 8),
             Text(
               value,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 4),
             Text(
               title,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey.shade600,
-              ),
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
               textAlign: TextAlign.center,
             ),
           ],
@@ -2087,7 +2105,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     IconButton(
                       icon: Icon(
                         Icons.bar_chart,
-                        color: !_showPieChart ? Colors.blue.shade600 : Colors.grey,
+                        color:
+                            !_showPieChart ? Colors.blue.shade600 : Colors.grey,
                       ),
                       onPressed: () {
                         setState(() {
@@ -2099,7 +2118,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     IconButton(
                       icon: Icon(
                         Icons.pie_chart,
-                        color: _showPieChart ? Colors.blue.shade600 : Colors.grey,
+                        color:
+                            _showPieChart ? Colors.blue.shade600 : Colors.grey,
                       ),
                       onPressed: () {
                         setState(() {
@@ -2113,12 +2133,13 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
             const SizedBox(height: 16),
-            
+
             AnimatedSwitcher(
               duration: const Duration(milliseconds: 300),
-              child: _showPieChart 
-                  ? _buildPieChart(distribution)
-                  : _buildBarChart(distribution),
+              child:
+                  _showPieChart
+                      ? _buildPieChart(distribution)
+                      : _buildBarChart(distribution),
             ),
           ],
         ),
@@ -2127,10 +2148,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildPieChart(List<MoodStats> distribution) {
-    final nonZeroDistribution = distribution.where((mood) => mood.count > 0).toList();
-    
+    final nonZeroDistribution =
+        distribution.where((mood) => mood.count > 0).toList();
+
     if (nonZeroDistribution.isEmpty) {
-      return Container(
+      return SizedBox(
         height: 200,
         child: Center(
           child: Text(
@@ -2143,23 +2165,24 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Column(
       children: [
-        Container(
+        SizedBox(
           height: 250,
           child: PieChart(
             PieChartData(
-              sections: nonZeroDistribution.map((mood) {
-                return PieChartSectionData(
-                  color: MoodAnalyzer.moodColors[mood.moodIndex],
-                  value: mood.percentage,
-                  title: '${mood.percentage.toStringAsFixed(1)}%',
-                  radius: 100,
-                  titleStyle: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                );
-              }).toList(),
+              sections:
+                  nonZeroDistribution.map((mood) {
+                    return PieChartSectionData(
+                      color: MoodAnalyzer.moodColors[mood.moodIndex],
+                      value: mood.percentage,
+                      title: '${mood.percentage.toStringAsFixed(1)}%',
+                      radius: 100,
+                      titleStyle: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    );
+                  }).toList(),
               sectionsSpace: 2,
               centerSpaceRadius: 40,
             ),
@@ -2171,32 +2194,38 @@ class _HomeScreenState extends State<HomeScreen> {
           spacing: 20,
           runSpacing: 12,
           alignment: WrapAlignment.center,
-          children: nonZeroDistribution.map((mood) {
-            return Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 16,
-                    height: 16,
-                    decoration: BoxDecoration(
-                      color: MoodAnalyzer.moodColors[mood.moodIndex],
-                      shape: BoxShape.circle,
-                    ),
+          children:
+              nonZeroDistribution.map((mood) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
                   ),
-                  const SizedBox(width: 7),
-                  Text(
-                    '${mood.emoji} ${mood.label}',
-                    style: const TextStyle(
-                      fontSize: 13, // Slightly larger font
-                      fontWeight: FontWeight.w500, // Medium weight for better readability
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 16,
+                        height: 16,
+                        decoration: BoxDecoration(
+                          color: MoodAnalyzer.moodColors[mood.moodIndex],
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 7),
+                      Text(
+                        '${mood.emoji} ${mood.label}',
+                        style: const TextStyle(
+                          fontSize: 13, // Slightly larger font
+                          fontWeight:
+                              FontWeight
+                                  .w500, // Medium weight for better readability
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            );
-          }).toList(),
+                );
+              }).toList(),
         ),
       ],
     );
@@ -2204,7 +2233,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildBarChart(List<MoodStats> distribution) {
     return Column(
-      children: distribution.map((mood) => _buildMoodDistributionItem(mood)).toList(),
+      children:
+          distribution.map((mood) => _buildMoodDistributionItem(mood)).toList(),
     );
   }
 
@@ -2213,10 +2243,7 @@ class _HomeScreenState extends State<HomeScreen> {
       padding: const EdgeInsets.only(bottom: 12.0),
       child: Row(
         children: [
-          Text(
-            mood.emoji,
-            style: const TextStyle(fontSize: 24),
-          ),
+          Text(mood.emoji, style: const TextStyle(fontSize: 24)),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -2260,10 +2287,7 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             Text(
               'Mood by Category',
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             ...categoryStats.map((category) => _buildCategoryItem(category)),
@@ -2282,7 +2306,9 @@ class _HomeScreenState extends State<HomeScreen> {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: MoodAnalyzer.moodColors[category.averageScore.round().clamp(0, 4)].withOpacity(0.2),
+              color: MoodAnalyzer
+                  .moodColors[category.averageScore.round().clamp(0, 4)]
+                  .withOpacity(0.2),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Center(
@@ -2303,10 +2329,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 Text(
                   '${category.averageLabel} (${category.averageScore.toStringAsFixed(1)}/4) • ${category.count} entries',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey.shade600,
-                  ),
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                 ),
               ],
             ),
