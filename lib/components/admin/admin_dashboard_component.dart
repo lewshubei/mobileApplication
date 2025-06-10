@@ -590,12 +590,21 @@ extension on Color {
 
 Color _getAssessmentRiskColor(num score) {
   if (score >= 80) return Colors.red.shade100;
-  if (score >= 60) return Colors.yellow.shade100;
+  if (score >= 60) return Colors.orange.shade100;
+  if (score >= 40) return Colors.amber.shade100;
   return Colors.green.shade100;
 }
 
 Color _getAssessmentRiskTextColor(num score) {
   if (score >= 80) return Colors.red;
   if (score >= 60) return Colors.orange[800]!;
+  if (score >= 40) return Colors.amber[800]!;
   return Colors.green[800]!;
+}
+
+String getScoreDescription(num score) {
+  if (score >= 80) return 'Needs attention - Consider speaking with a counselor';
+  if (score >= 60) return 'Moderat mental wellbeing';
+  if (score >= 40) return 'Good mental wellbeing';
+  return 'Excellent mental wellbeing';
 }

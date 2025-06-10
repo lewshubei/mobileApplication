@@ -1254,7 +1254,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         const SizedBox(width: 8),
                         const Text('80-100%', style: TextStyle(fontWeight: FontWeight.bold)),
                         const SizedBox(width: 8),
-                        const Text('- Very High Risk'),
+                        const Text('- Bad mental wellbeing'),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -1264,7 +1264,17 @@ class _HomeScreenState extends State<HomeScreen> {
                         const SizedBox(width: 8),
                         const Text('60-79%', style: TextStyle(fontWeight: FontWeight.bold)),
                         const SizedBox(width: 8),
-                        const Text('- Medium Risk'),
+                        const Text('- Moderate mental wellbeing'),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Container(width: 18, height: 18, decoration: BoxDecoration(color: Colors.amber, shape: BoxShape.circle)),
+                        const SizedBox(width: 8),
+                        const Text('40-59%', style: TextStyle(fontWeight: FontWeight.bold)),
+                        const SizedBox(width: 8),
+                        const Text('- Good mental wellbeing'),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -1272,9 +1282,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         Container(width: 18, height: 18, decoration: BoxDecoration(color: Colors.green, shape: BoxShape.circle)),
                         const SizedBox(width: 8),
-                        const Text('0-59%', style: TextStyle(fontWeight: FontWeight.bold)),
+                        const Text('0-39%', style: TextStyle(fontWeight: FontWeight.bold)),
                         const SizedBox(width: 8),
-                        const Text('- Low Risk'),
+                        const Text('- Excellent mental wellbeing'),
                       ],
                     ),
                   ],
@@ -2489,12 +2499,14 @@ class _HomeScreenState extends State<HomeScreen> {
     // High score = high risk = red, medium = yellow, low = green
     if (score >= 80) return Colors.red.shade100;
     if (score >= 60) return Colors.yellow.shade100;
+    if (score >= 40) return Colors.amber.shade100;
     return Colors.green.shade100;
   }
 
   Color _getAssessmentRiskTextColor(num score) {
     if (score >= 80) return Colors.red;
     if (score >= 60) return Colors.orange[800]!;
+    if (score >= 40) return Colors.amber[800]!;
     return Colors.green[800]!;
   }
 }

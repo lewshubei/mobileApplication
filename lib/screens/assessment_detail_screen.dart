@@ -662,16 +662,16 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
   }
 
   Color _getScoreColor(double score) {
-    if (score >= 80) return Colors.green;
-    if (score >= 60) return Colors.orange;
-    if (score >= 40) return Colors.amber;
-    return Colors.red;
+    if (score >= 80) return Colors.red;
+    if (score >= 60) return Colors.orange[800]!;
+    if (score >= 40) return Colors.amber[800]!;
+    return Colors.green[800]!;
   }
 
   String _getScoreDescription(double score) {
-    if (score >= 80) return 'Excellent mental wellbeing';
-    if (score >= 60) return 'Good mental wellbeing';
-    if (score >= 40) return 'Moderate mental wellbeing';
-    return 'Needs attention - Consider speaking with a counselor';
+    if (score >= 80) return 'Needs attention - Consider speaking with a counselor';
+    if (score >= 60) return 'Moderate mental wellbeing';
+    if (score >= 40) return 'Good mental wellbeing';
+    return 'Excellent mental wellbeing';
   }
 }
