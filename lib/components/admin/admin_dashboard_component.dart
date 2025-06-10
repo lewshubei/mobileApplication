@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import 'package:sentimo/providers/user_provider.dart';
+import 'package:intl/intl.dart';
 
 class AdminDashboardComponent extends StatelessWidget {
   const AdminDashboardComponent({super.key});
@@ -329,6 +330,68 @@ class AdminDashboardComponent extends StatelessWidget {
 
                       const SizedBox(height: 24),
 
+                      // High Risk Assessments List
+                      Text(
+                        'Assessments',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 12),
+                      if (assessmentsSnapshot.hasData && assessmentsSnapshot.data!.docs.isNotEmpty)
+                        ListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: assessmentsSnapshot.data!.docs.length,
+                          itemBuilder: (context, index) {
+                            final assessments = assessmentsSnapshot.data!.docs.toList();
+                            // Sort by score descending
+                            assessments.sort((a, b) {
+                              final aScore = (a.data() as Map<String, dynamic>)['score'] ?? 0;
+                              final bScore = (b.data() as Map<String, dynamic>)['score'] ?? 0;
+                              return bScore.compareTo(aScore);
+                            });
+                            final assessment = assessments[index];
+                            final data = assessment.data() as Map<String, dynamic>;
+                            final score = data['score'] ?? 0;
+                            final userId = data['userId'] ?? '';
+                            final timestamp = data['timestamp'] as Timestamp?;
+                            final dateStr = timestamp != null ? DateFormat('MMM dd, yyyy - hh:mm a').format(timestamp.toDate()) : '';
+                            return FutureBuilder<DocumentSnapshot>(
+                              future: FirebaseFirestore.instance.collection('users').doc(userId).get(),
+                              builder: (context, userSnapshot) {
+                                String studentName = 'Student';
+                                if (userSnapshot.hasData && userSnapshot.data != null) {
+                                  final userData = userSnapshot.data!.data() as Map<String, dynamic>?;
+                                  studentName = userData?['name'] ?? userData?['displayName'] ?? 'Student';
+                                }
+                                return Card(
+                                  color: _getAssessmentRiskColor(score),
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  child: ListTile(
+                                    title: Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(studentName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                                        Text(
+                                          '${score.toStringAsFixed(0)}%',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: _getAssessmentRiskTextColor(score),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    subtitle: Text(dateStr),
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                        )
+                      else
+                        const Text('No assessments found.'),
+
+                      const SizedBox(height: 24),
+
                       // Quick Actions
                       Text(
                         'Quick Actions',
@@ -523,4 +586,16 @@ extension on Color {
   get shade900 => null;
 
   get shade700 => null;
+}
+
+Color _getAssessmentRiskColor(num score) {
+  if (score >= 80) return Colors.red.shade100;
+  if (score >= 60) return Colors.yellow.shade100;
+  return Colors.green.shade100;
+}
+
+Color _getAssessmentRiskTextColor(num score) {
+  if (score >= 80) return Colors.red;
+  if (score >= 60) return Colors.orange[800]!;
+  return Colors.green[800]!;
 }
