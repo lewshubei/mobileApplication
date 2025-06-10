@@ -1234,6 +1234,54 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 16),
 
+            // Test Range Details Legend
+            Card(
+              margin: const EdgeInsets.only(bottom: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Test Range Details',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Container(width: 18, height: 18, decoration: BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle)),
+                        const SizedBox(width: 8),
+                        const Text('80-100%', style: TextStyle(fontWeight: FontWeight.bold)),
+                        const SizedBox(width: 8),
+                        const Text('- Very High Risk'),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Container(width: 18, height: 18, decoration: BoxDecoration(color: Colors.orange, shape: BoxShape.circle)),
+                        const SizedBox(width: 8),
+                        const Text('60-79%', style: TextStyle(fontWeight: FontWeight.bold)),
+                        const SizedBox(width: 8),
+                        const Text('- Medium Risk'),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Container(width: 18, height: 18, decoration: BoxDecoration(color: Colors.green, shape: BoxShape.circle)),
+                        const SizedBox(width: 8),
+                        const Text('0-59%', style: TextStyle(fontWeight: FontWeight.bold)),
+                        const SizedBox(width: 8),
+                        const Text('- Low Risk'),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
             FutureBuilder<List<QueryDocumentSnapshot>>(
               future: _getUserAssessments(),
               builder: (context, snapshot) {
