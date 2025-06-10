@@ -1309,8 +1309,10 @@ class _HomeScreenState extends State<HomeScreen> {
         final timestamp = assessment['timestamp'] as Timestamp?;
         final shared = assessment['shared_with_counselor'] ?? false;
         final answers = assessment['answers'] as List<dynamic>;
+        final totalCount = assessments.length;
 
         return Card(
+          color: _getAssessmentRiskColor(assessment['score'] ?? 0),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -1324,16 +1326,33 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Text(
-                        'Assessment ${index + 1}',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Assessment ${totalCount - index}',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                          if (shared) ...[
+                            const SizedBox(width: 8),
+                            Icon(Icons.share, color: Colors.green, size: 18),
+                          ],
+                        ],
                       ),
-                      if (shared)
-                        const Icon(Icons.share, color: Colors.green, size: 18),
+                      if (assessment['score'] != null)
+                        Text(
+                          '${assessment['score'].toStringAsFixed(0)}%',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: _getAssessmentRiskTextColor(assessment['score'] ?? 0),
+                          ),
+                        ),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -1652,6 +1671,22 @@ class _HomeScreenState extends State<HomeScreen> {
 
     print('user id: ${user.uid}');
 
+    // Calculate score based on answers
+    int totalScore = 0;
+    for (int i = 0; i < questions.length; i++) {
+      final answer = selectedAnswers[i];
+      if (answer != null) {
+        // Score based on answer position (0-3)
+        final answerIndex = questions[i]['options'].indexOf(answer);
+        // Higher index means more positive answer
+        totalScore = totalScore + (answerIndex as int);
+      }
+    }
+    
+    // Calculate percentage score (max possible score is 3 * number of questions)
+    final maxPossibleScore = 3 * questions.length;
+    final percentageScore = (totalScore / maxPossibleScore) * 100;
+
     final assessmentData = {
       'userId': user.uid,
       'timestamp': FieldValue.serverTimestamp(),
@@ -1662,6 +1697,7 @@ class _HomeScreenState extends State<HomeScreen> {
           'answer': selectedAnswers[i],
         },
       ),
+      'score': percentageScore, // Add score to the assessment data
     };
 
     final shouldShare = await showDialog<bool>(
@@ -2399,5 +2435,18 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
+  }
+
+  Color _getAssessmentRiskColor(num score) {
+    // High score = high risk = red, medium = yellow, low = green
+    if (score >= 80) return Colors.red.shade100;
+    if (score >= 60) return Colors.yellow.shade100;
+    return Colors.green.shade100;
+  }
+
+  Color _getAssessmentRiskTextColor(num score) {
+    if (score >= 80) return Colors.red;
+    if (score >= 60) return Colors.orange[800]!;
+    return Colors.green[800]!;
   }
 }
