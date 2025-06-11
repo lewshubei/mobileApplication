@@ -510,6 +510,61 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
 
             const SizedBox(height: 12),
 
+            // Score display card
+            Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Overall Score',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: LinearProgressIndicator(
+                            value: (assessmentData['score'] ?? 0) / 100,
+                            backgroundColor: Colors.grey.shade200,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              _getScoreColor(assessmentData['score'] ?? 0),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Text(
+                          '${(assessmentData['score'] ?? 0).toStringAsFixed(1)}%',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: _getScoreColor(assessmentData['score'] ?? 0),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _getScoreDescription(assessmentData['score'] ?? 0),
+                      style: TextStyle(
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
             // Questions and answers - Full width
             ...List.generate(answers.length, (index) {
               final answer = answers[index];
@@ -604,5 +659,19 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
         );
       },
     );
+  }
+
+  Color _getScoreColor(double score) {
+    if (score >= 80) return Colors.red;
+    if (score >= 60) return Colors.orange[800]!;
+    if (score >= 40) return Colors.amber[800]!;
+    return Colors.green[800]!;
+  }
+
+  String _getScoreDescription(double score) {
+    if (score >= 80) return 'Needs attention - Consider speaking with a counselor';
+    if (score >= 60) return 'Moderate mental wellbeing';
+    if (score >= 40) return 'Good mental wellbeing';
+    return 'Excellent mental wellbeing';
   }
 }

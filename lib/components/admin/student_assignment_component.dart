@@ -146,6 +146,19 @@ class _StudentAssignmentComponentState
                   }
                 }).toList();
 
+            // Sort students by their highest assessment score (descending)
+            filteredStudents.sort((a, b) {
+              final aAssessments = studentAssessments[a.id] ?? [];
+              final bAssessments = studentAssessments[b.id] ?? [];
+              final aHighest = aAssessments.isNotEmpty
+                  ? (aAssessments.map((doc) => (doc.data() as Map<String, dynamic>)['score'] ?? 0).reduce((v, e) => v > e ? v : e))
+                  : 0;
+              final bHighest = bAssessments.isNotEmpty
+                  ? (bAssessments.map((doc) => (doc.data() as Map<String, dynamic>)['score'] ?? 0).reduce((v, e) => v > e ? v : e))
+                  : 0;
+              return bHighest.compareTo(aHighest);
+            });
+
             if (filteredStudents.isEmpty) {
               return _buildEmptyState();
             }
@@ -222,20 +235,20 @@ class _StudentAssignmentComponentState
     final assignedCounselorId = studentData['assignedCounselorId'];
     final assignedCounselorName = studentData['assignedCounselorName'];
 
-    // Get latest assessment date
+    // Get latest assessment date and highest score
     DateTime? latestAssessmentDate;
+    num? highestScore;
     if (assessments.isNotEmpty) {
       final sortedAssessments =
           assessments.toList()..sort((a, b) {
-            final aData = a.data() as Map<String, dynamic>;
-            final bData = b.data() as Map<String, dynamic>;
-            final aTime = aData['timestamp'] as Timestamp;
-            final bTime = bData['timestamp'] as Timestamp;
-            return bTime.compareTo(aTime);
+            final aScore = (a.data() as Map<String, dynamic>)['score'] ?? 0;
+            final bScore = (b.data() as Map<String, dynamic>)['score'] ?? 0;
+            return bScore.compareTo(aScore); // Descending by score
           });
 
-      final latestData = sortedAssessments.first.data() as Map<String, dynamic>;
-      latestAssessmentDate = (latestData['timestamp'] as Timestamp).toDate();
+      final highestData = sortedAssessments.first.data() as Map<String, dynamic>;
+      highestScore = highestData['score'];
+      latestAssessmentDate = (highestData['timestamp'] as Timestamp).toDate();
     }
 
     return Card(
@@ -325,6 +338,16 @@ class _StudentAssignmentComponentState
                         color: Colors.grey.shade600,
                       ),
                     ),
+                    if (highestScore != null) ...[
+                      const SizedBox(width: 16),
+                      Text(
+                        'Score: ${highestScore.toStringAsFixed(0)}%',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: _getAssessmentRiskTextColor(highestScore!),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -625,5 +648,11 @@ class _StudentAssignmentComponentState
         });
       }
     }
+  }
+
+  Color _getAssessmentRiskTextColor(num score) {
+    if (score >= 80) return Colors.red;
+    if (score >= 60) return Colors.orange[800]!;
+    return Colors.green[800]!;
   }
 }
