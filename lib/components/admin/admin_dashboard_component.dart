@@ -230,7 +230,7 @@ class AdminDashboardComponent extends StatelessWidget {
                             ),
                             const SizedBox(width: 12),
                             Text(
-                              'Overview',
+                              'System Overview',
                               style: Theme.of(
                                 context,
                               ).textTheme.titleLarge?.copyWith(
