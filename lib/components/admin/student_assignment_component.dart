@@ -150,12 +150,26 @@ class _StudentAssignmentComponentState
             filteredStudents.sort((a, b) {
               final aAssessments = studentAssessments[a.id] ?? [];
               final bAssessments = studentAssessments[b.id] ?? [];
-              final aHighest = aAssessments.isNotEmpty
-                  ? (aAssessments.map((doc) => (doc.data() as Map<String, dynamic>)['score'] ?? 0).reduce((v, e) => v > e ? v : e))
-                  : 0;
-              final bHighest = bAssessments.isNotEmpty
-                  ? (bAssessments.map((doc) => (doc.data() as Map<String, dynamic>)['score'] ?? 0).reduce((v, e) => v > e ? v : e))
-                  : 0;
+              final aHighest =
+                  aAssessments.isNotEmpty
+                      ? (aAssessments
+                          .map(
+                            (doc) =>
+                                (doc.data() as Map<String, dynamic>)['score'] ??
+                                0,
+                          )
+                          .reduce((v, e) => v > e ? v : e))
+                      : 0;
+              final bHighest =
+                  bAssessments.isNotEmpty
+                      ? (bAssessments
+                          .map(
+                            (doc) =>
+                                (doc.data() as Map<String, dynamic>)['score'] ??
+                                0,
+                          )
+                          .reduce((v, e) => v > e ? v : e))
+                      : 0;
               return bHighest.compareTo(aHighest);
             });
 
@@ -246,7 +260,8 @@ class _StudentAssignmentComponentState
             return bScore.compareTo(aScore); // Descending by score
           });
 
-      final highestData = sortedAssessments.first.data() as Map<String, dynamic>;
+      final highestData =
+          sortedAssessments.first.data() as Map<String, dynamic>;
       highestScore = highestData['score'];
       latestAssessmentDate = (highestData['timestamp'] as Timestamp).toDate();
     }

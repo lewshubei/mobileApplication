@@ -6,6 +6,7 @@ import 'package:sentimo/screens/profile_screen.dart';
 import 'package:sentimo/providers/user_provider.dart';
 import 'package:sentimo/components/admin/student_assignment_component.dart';
 import 'package:sentimo/components/admin/admin_dashboard_component.dart';
+import 'package:sentimo/components/admin/admin_forum_component.dart';
 
 class AdminHomeScreen extends StatelessWidget {
   const AdminHomeScreen({super.key});
@@ -26,17 +27,25 @@ class AdminHomeScreen extends StatelessWidget {
     final theme = Theme.of(context);
 
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Admin Dashboard'),
           bottom: const TabBar(
-            tabs: [Tab(text: 'Dashboard'), Tab(text: 'Assign Student')],
+            tabs: [
+              Tab(text: 'Dashboard'),
+              Tab(text: 'Assign Student'),
+              Tab(text: 'Manage Forum'),
+            ],
           ),
         ),
         drawer: _buildCustomDrawer(context, user, theme),
         body: const TabBarView(
-          children: [AdminDashboardComponent(), StudentAssignmentComponent()],
+          children: [
+            AdminDashboardComponent(),
+            StudentAssignmentComponent(),
+            AdminForumComponent(),
+          ],
         ),
       ),
     );

@@ -333,49 +333,81 @@ class AdminDashboardComponent extends StatelessWidget {
                       // High Risk Assessments List
                       Text(
                         'Assessments',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       const SizedBox(height: 12),
-                      if (assessmentsSnapshot.hasData && assessmentsSnapshot.data!.docs.isNotEmpty)
+                      if (assessmentsSnapshot.hasData &&
+                          assessmentsSnapshot.data!.docs.isNotEmpty)
                         ListView.builder(
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
                           itemCount: assessmentsSnapshot.data!.docs.length,
                           itemBuilder: (context, index) {
-                            final assessments = assessmentsSnapshot.data!.docs.toList();
+                            final assessments =
+                                assessmentsSnapshot.data!.docs.toList();
                             // Sort by score descending
                             assessments.sort((a, b) {
-                              final aScore = (a.data() as Map<String, dynamic>)['score'] ?? 0;
-                              final bScore = (b.data() as Map<String, dynamic>)['score'] ?? 0;
+                              final aScore =
+                                  (a.data() as Map<String, dynamic>)['score'] ??
+                                  0;
+                              final bScore =
+                                  (b.data() as Map<String, dynamic>)['score'] ??
+                                  0;
                               return bScore.compareTo(aScore);
                             });
                             final assessment = assessments[index];
-                            final data = assessment.data() as Map<String, dynamic>;
+                            final data =
+                                assessment.data() as Map<String, dynamic>;
                             final score = data['score'] ?? 0;
                             final userId = data['userId'] ?? '';
                             final timestamp = data['timestamp'] as Timestamp?;
-                            final dateStr = timestamp != null ? DateFormat('MMM dd, yyyy - hh:mm a').format(timestamp.toDate()) : '';
+                            final dateStr =
+                                timestamp != null
+                                    ? DateFormat(
+                                      'MMM dd, yyyy - hh:mm a',
+                                    ).format(timestamp.toDate())
+                                    : '';
                             return FutureBuilder<DocumentSnapshot>(
-                              future: FirebaseFirestore.instance.collection('users').doc(userId).get(),
+                              future:
+                                  FirebaseFirestore.instance
+                                      .collection('users')
+                                      .doc(userId)
+                                      .get(),
                               builder: (context, userSnapshot) {
                                 String studentName = 'Student';
-                                if (userSnapshot.hasData && userSnapshot.data != null) {
-                                  final userData = userSnapshot.data!.data() as Map<String, dynamic>?;
-                                  studentName = userData?['name'] ?? userData?['displayName'] ?? 'Student';
+                                if (userSnapshot.hasData &&
+                                    userSnapshot.data != null) {
+                                  final userData =
+                                      userSnapshot.data!.data()
+                                          as Map<String, dynamic>?;
+                                  studentName =
+                                      userData?['name'] ??
+                                      userData?['displayName'] ??
+                                      'Student';
                                 }
                                 return Card(
                                   color: _getAssessmentRiskColor(score),
                                   margin: const EdgeInsets.only(bottom: 8),
                                   child: ListTile(
                                     title: Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
                                       children: [
-                                        Text(studentName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                                        Text(
+                                          studentName,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
                                         Text(
                                           '${score.toStringAsFixed(0)}%',
                                           style: TextStyle(
                                             fontWeight: FontWeight.bold,
-                                            color: _getAssessmentRiskTextColor(score),
+                                            color: _getAssessmentRiskTextColor(
+                                              score,
+                                            ),
                                           ),
                                         ),
                                       ],
@@ -603,7 +635,8 @@ Color _getAssessmentRiskTextColor(num score) {
 }
 
 String getScoreDescription(num score) {
-  if (score >= 80) return 'Needs attention - Consider speaking with a counselor';
+  if (score >= 80)
+    return 'Needs attention - Consider speaking with a counselor';
   if (score >= 60) return 'Moderat mental wellbeing';
   if (score >= 40) return 'Good mental wellbeing';
   return 'Excellent mental wellbeing';

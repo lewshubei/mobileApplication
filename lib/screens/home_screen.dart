@@ -8,6 +8,7 @@ import 'package:sentimo/screens/profile_screen.dart';
 import 'package:sentimo/screens/login_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/mood_entry.dart';
+import 'package:sentimo/components/student/student_forum_component.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -1128,9 +1129,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildForumPage(BuildContext context) {
-    return const Center(
-      child: Text('Forum Page', style: TextStyle(fontSize: 24)),
-    );
+    return StudentForumComponent();
   }
 
   Widget _buildMentalHealthTestPage(BuildContext context) {
@@ -1237,7 +1236,9 @@ class _HomeScreenState extends State<HomeScreen> {
             // Test Range Details Legend
             Card(
               margin: const EdgeInsets.only(bottom: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
@@ -1245,14 +1246,27 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     const Text(
                       'Test Range Details',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     Row(
                       children: [
-                        Container(width: 18, height: 18, decoration: BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle)),
+                        Container(
+                          width: 18,
+                          height: 18,
+                          decoration: BoxDecoration(
+                            color: Colors.redAccent,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
                         const SizedBox(width: 8),
-                        const Text('80-100%', style: TextStyle(fontWeight: FontWeight.bold)),
+                        const Text(
+                          '80-100%',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
                         const SizedBox(width: 8),
                         const Text('- Bad mental wellbeing'),
                       ],
@@ -1260,9 +1274,19 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        Container(width: 18, height: 18, decoration: BoxDecoration(color: Colors.orange, shape: BoxShape.circle)),
+                        Container(
+                          width: 18,
+                          height: 18,
+                          decoration: BoxDecoration(
+                            color: Colors.orange,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
                         const SizedBox(width: 8),
-                        const Text('60-79%', style: TextStyle(fontWeight: FontWeight.bold)),
+                        const Text(
+                          '60-79%',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
                         const SizedBox(width: 8),
                         const Text('- Moderate mental wellbeing'),
                       ],
@@ -1270,9 +1294,19 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        Container(width: 18, height: 18, decoration: BoxDecoration(color: Colors.amber, shape: BoxShape.circle)),
+                        Container(
+                          width: 18,
+                          height: 18,
+                          decoration: BoxDecoration(
+                            color: Colors.amber,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
                         const SizedBox(width: 8),
-                        const Text('40-59%', style: TextStyle(fontWeight: FontWeight.bold)),
+                        const Text(
+                          '40-59%',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
                         const SizedBox(width: 8),
                         const Text('- Good mental wellbeing'),
                       ],
@@ -1280,9 +1314,19 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        Container(width: 18, height: 18, decoration: BoxDecoration(color: Colors.green, shape: BoxShape.circle)),
+                        Container(
+                          width: 18,
+                          height: 18,
+                          decoration: BoxDecoration(
+                            color: Colors.green,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
                         const SizedBox(width: 8),
-                        const Text('0-39%', style: TextStyle(fontWeight: FontWeight.bold)),
+                        const Text(
+                          '0-39%',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
                         const SizedBox(width: 8),
                         const Text('- Excellent mental wellbeing'),
                       ],
@@ -1408,7 +1452,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
-                            color: _getAssessmentRiskTextColor(assessment['score'] ?? 0),
+                            color: _getAssessmentRiskTextColor(
+                              assessment['score'] ?? 0,
+                            ),
                           ),
                         ),
                     ],
@@ -1740,7 +1786,7 @@ class _HomeScreenState extends State<HomeScreen> {
         totalScore = totalScore + (answerIndex as int);
       }
     }
-    
+
     // Calculate percentage score (max possible score is 3 * number of questions)
     final maxPossibleScore = 3 * questions.length;
     final percentageScore = (totalScore / maxPossibleScore) * 100;
@@ -1837,6 +1883,8 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
     );
+
+    setState(() {});
 
     // Save data into firestore
     try {
