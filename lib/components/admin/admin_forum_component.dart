@@ -1,7 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:intl/intl.dart';
 
 class AdminForumComponent extends StatefulWidget {
   const AdminForumComponent({super.key});
@@ -87,20 +86,16 @@ class _AdminForumComponentState extends State<AdminForumComponent> {
               .orderBy('createdAt', descending: true)
               .snapshots(),
       builder: (context, snapshot) {
-        // Handle loading state
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        // Handle errors
         if (snapshot.hasError) {
           return Center(child: Text('Error: ${snapshot.error}'));
         }
 
-        // Get the posts data
         final posts = snapshot.data?.docs ?? [];
 
-        // If no posts, show empty state message centered
         if (posts.isEmpty) {
           return Center(
             child: Column(
@@ -118,7 +113,6 @@ class _AdminForumComponentState extends State<AdminForumComponent> {
           );
         }
 
-        // StreamBuilder for loading user data
         return StreamBuilder<QuerySnapshot>(
           stream: FirebaseFirestore.instance.collection('users').snapshots(),
           builder: (context, userSnapshot) {
@@ -139,7 +133,6 @@ class _AdminForumComponentState extends State<AdminForumComponent> {
                     'Unknown User',
             };
 
-            // Filter the posts based on selected filter
             final filteredPosts =
                 posts
                     .map((doc) {
@@ -169,7 +162,6 @@ class _AdminForumComponentState extends State<AdminForumComponent> {
                     })
                     .toList();
 
-            // If no filtered posts, show empty state message centered
             if (filteredPosts.isEmpty) {
               return Center(
                 child: Column(
@@ -187,7 +179,6 @@ class _AdminForumComponentState extends State<AdminForumComponent> {
               );
             }
 
-            // Render the post list
             return ListView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -273,7 +264,6 @@ class _AdminForumComponentState extends State<AdminForumComponent> {
             ],
           ),
           const SizedBox(height: 8),
-          // Display the user who created the post instead of content
           Text(
             'Posted by: ${post['authorName'] ?? 'Unknown User'}',
             style: TextStyle(fontSize: 14, color: Colors.grey.shade600),

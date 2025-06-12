@@ -299,18 +299,18 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
 
               // Settings option
-              ListTile(
-                leading: const Icon(Icons.settings),
-                title: const Text('Settings'),
-                onTap: () {
-                  Navigator.pop(context);
-                  // Navigate to settings page
-                  // For now, just show a snackbar
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Settings page coming soon')),
-                  );
-                },
-              ),
+              // ListTile(
+              //   leading: const Icon(Icons.settings),
+              //   title: const Text('Settings'),
+              //   onTap: () {
+              //     Navigator.pop(context);
+              //     // Navigate to settings page
+              //     // For now, just show a snackbar
+              //     ScaffoldMessenger.of(context).showSnackBar(
+              //       const SnackBar(content: Text('Settings page coming soon')),
+              //     );
+              //   },
+              // ),
 
               // Debug option to reload data
               ListTile(

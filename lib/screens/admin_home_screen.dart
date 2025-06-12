@@ -66,12 +66,12 @@ class AdminHomeScreen extends StatelessWidget {
             title: 'Profile',
             onTap: () => _navigateTo(context, const ProfileScreen()),
           ),
-          _buildMenuTile(
-            context,
-            icon: Icons.settings,
-            title: 'Settings',
-            onTap: () {},
-          ),
+          // _buildMenuTile(
+          //   context,
+          //   icon: Icons.settings,
+          //   title: 'Settings',
+          //   onTap: () {},
+          // ),
           const Divider(height: 1, thickness: 1),
           _buildMenuTile(
             context,

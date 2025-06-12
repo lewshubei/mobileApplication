@@ -31,10 +31,7 @@ class CounselorHomeScreen extends StatelessWidget {
         appBar: AppBar(
           title: const Text('Counselor Dashboard'),
           bottom: const TabBar(
-            tabs: [
-              Tab(text: 'Dashboard'),
-              Tab(text: 'Assessments'),
-            ],
+            tabs: [Tab(text: 'Dashboard'), Tab(text: 'Assessments')],
           ),
         ),
         drawer: _buildCustomDrawer(context, user, theme),
@@ -66,12 +63,12 @@ class CounselorHomeScreen extends StatelessWidget {
             title: 'Profile',
             onTap: () => _navigateTo(context, const ProfileScreen()),
           ),
-          _buildMenuTile(
-            context,
-            icon: Icons.settings,
-            title: 'Settings',
-            onTap: () {},
-          ),
+          // _buildMenuTile(
+          //   context,
+          //   icon: Icons.settings,
+          //   title: 'Settings',
+          //   onTap: () {},
+          // ),
           const Divider(height: 1, thickness: 1),
           _buildMenuTile(
             context,
