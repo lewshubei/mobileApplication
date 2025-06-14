@@ -2,7 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 class AppointmentListComponent extends StatefulWidget {
-  const AppointmentListComponent({super.key});
+  final Function(Map<String, dynamic>)? onAppointmentTap;
+
+  const AppointmentListComponent({
+    super.key,
+    this.onAppointmentTap,
+  });
 
   @override
   State<AppointmentListComponent> createState() => _AppointmentListComponentState();
@@ -176,7 +181,9 @@ class _AppointmentListComponentState extends State<AppointmentListComponent> wit
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: () {
-          // Will be implemented in future for appointment details
+          if (widget.onAppointmentTap != null) {
+            widget.onAppointmentTap!(appointment);
+          }
         },
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -275,7 +282,9 @@ class _AppointmentListComponentState extends State<AppointmentListComponent> wit
                       icon: Icons.edit,
                       label: 'Edit',
                       onTap: () {
-                        // Will be implemented in future
+                        if (widget.onAppointmentTap != null) {
+                          widget.onAppointmentTap!(appointment);
+                        }
                       },
                     ),
                     const SizedBox(width: 8),
@@ -292,7 +301,9 @@ class _AppointmentListComponentState extends State<AppointmentListComponent> wit
                       icon: Icons.note_add,
                       label: 'Add Notes',
                       onTap: () {
-                        // Will be implemented in future
+                        if (widget.onAppointmentTap != null) {
+                          widget.onAppointmentTap!(appointment);
+                        }
                       },
                     ),
                   ] else if (appointment['status'] == 'Cancelled') ...[
@@ -300,7 +311,9 @@ class _AppointmentListComponentState extends State<AppointmentListComponent> wit
                       icon: Icons.restore,
                       label: 'Reschedule',
                       onTap: () {
-                        // Will be implemented in future
+                        if (widget.onAppointmentTap != null) {
+                          widget.onAppointmentTap!(appointment);
+                        }
                       },
                     ),
                   ],
@@ -356,6 +369,7 @@ class _AppointmentListComponentState extends State<AppointmentListComponent> wit
             'clientName': 'Alex Johnson',
             'dateTime': now.add(const Duration(days: 1)),
             'status': 'Upcoming',
+            'sessionType': 'In-person',
             'notes': 'Follow-up session on anxiety management techniques'
           },
           {
@@ -363,6 +377,7 @@ class _AppointmentListComponentState extends State<AppointmentListComponent> wit
             'clientName': 'Sarah Williams',
             'dateTime': now.add(const Duration(days: 2, hours: 3)),
             'status': 'Upcoming',
+            'sessionType': 'Online',
             'notes': 'Initial assessment'
           },
           {
@@ -370,6 +385,7 @@ class _AppointmentListComponentState extends State<AppointmentListComponent> wit
             'clientName': 'Mike Chen',
             'dateTime': now.add(const Duration(days: 3, hours: 1)),
             'status': 'Upcoming',
+            'sessionType': 'In-person',
             'notes': ''
           },
         ];
@@ -380,6 +396,7 @@ class _AppointmentListComponentState extends State<AppointmentListComponent> wit
             'clientName': 'Emily Rogers',
             'dateTime': now.subtract(const Duration(days: 2)),
             'status': 'Past',
+            'sessionType': 'Online',
             'notes': 'Completed initial assessment. Scheduled follow-up in 2 weeks.'
           },
           {
@@ -387,6 +404,7 @@ class _AppointmentListComponentState extends State<AppointmentListComponent> wit
             'clientName': 'James Wilson',
             'dateTime': now.subtract(const Duration(days: 5)),
             'status': 'Past',
+            'sessionType': 'In-person',
             'notes': 'Discussed coping mechanisms for stress'
           },
         ];
@@ -397,6 +415,7 @@ class _AppointmentListComponentState extends State<AppointmentListComponent> wit
             'clientName': 'Lisa Thompson',
             'dateTime': now.subtract(const Duration(days: 1)),
             'status': 'Cancelled',
+            'sessionType': 'In-person',
             'notes': 'Student had a scheduling conflict'
           },
         ];

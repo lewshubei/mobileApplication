@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import 'package:sentimo/screens/login_screen.dart';
 import 'package:sentimo/screens/profile_screen.dart';
+import 'package:sentimo/screens/appointment_detail_screen.dart';
 import 'package:sentimo/providers/user_provider.dart';
 import 'package:sentimo/components/counselor/dashboard_component.dart';
 import 'package:sentimo/components/counselor/mental_health_assessment_component.dart';
@@ -63,6 +64,23 @@ class _CounselorHomeScreenState extends State<CounselorHomeScreen> with SingleTi
       ),
     );
   }
+  
+  void _showAppointmentDetails(Map<String, dynamic> appointment) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => AppointmentDetailScreen(
+          appointment: appointment,
+          onUpdate: (updatedAppointment) {
+            // Here you would typically update the appointment data in your backend
+            // For now, just show a success message
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Appointment updated successfully')),
+            );
+          },
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -87,7 +105,9 @@ class _CounselorHomeScreenState extends State<CounselorHomeScreen> with SingleTi
         controller: _tabController,
         children: [
           const CounselorDashboardComponent(),
-          const AppointmentListComponent(),
+          AppointmentListComponent(
+            onAppointmentTap: _showAppointmentDetails,
+          ),
           MentalHealthAssessmentComponent(
             user: user,
             signOutCallback: _signOut,
