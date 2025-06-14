@@ -6,9 +6,35 @@ import 'package:sentimo/screens/profile_screen.dart';
 import 'package:sentimo/providers/user_provider.dart';
 import 'package:sentimo/components/counselor/dashboard_component.dart';
 import 'package:sentimo/components/counselor/mental_health_assessment_component.dart';
+import 'package:sentimo/components/counselor/appointment_list_component.dart';
 
-class CounselorHomeScreen extends StatelessWidget {
+class CounselorHomeScreen extends StatefulWidget {
   const CounselorHomeScreen({super.key});
+
+  @override
+  State<CounselorHomeScreen> createState() => _CounselorHomeScreenState();
+}
+
+class _CounselorHomeScreenState extends State<CounselorHomeScreen> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+    
+    // Listen to tab changes to update floating action button visibility
+    _tabController.addListener(() {
+      // Call setState to rebuild the widget when tab changes
+      setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
 
   Future<void> _signOut(BuildContext context) async {
     await FirebaseAuth.instance.signOut();
@@ -25,26 +51,41 @@ class CounselorHomeScreen extends StatelessWidget {
     final user = userProvider.user ?? FirebaseAuth.instance.currentUser;
     final theme = Theme.of(context);
 
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Counselor Dashboard'),
-          bottom: const TabBar(
-            tabs: [Tab(text: 'Dashboard'), Tab(text: 'Assessments')],
-          ),
-        ),
-        drawer: _buildCustomDrawer(context, user, theme),
-        body: TabBarView(
-          children: [
-            const CounselorDashboardComponent(),
-            MentalHealthAssessmentComponent(
-              user: user,
-              signOutCallback: _signOut,
-            ),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Counselor Dashboard'),
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(text: 'Dashboard'),
+            Tab(text: 'Appointments'),
+            Tab(text: 'Assessments'),
           ],
         ),
       ),
+      drawer: _buildCustomDrawer(context, user, theme),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          const CounselorDashboardComponent(),
+          const AppointmentListComponent(),
+          MentalHealthAssessmentComponent(
+            user: user,
+            signOutCallback: _signOut,
+          ),
+        ],
+      ),
+      floatingActionButton: _tabController.index == 1
+          ? FloatingActionButton(
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Create new appointment (to be implemented)')),
+                );
+              },
+              child: const Icon(Icons.add),
+              tooltip: 'Create New Appointment',
+            )
+          : null,
     );
   }
 
