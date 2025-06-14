@@ -7,6 +7,7 @@ import 'package:sentimo/providers/user_provider.dart';
 import 'package:sentimo/components/counselor/dashboard_component.dart';
 import 'package:sentimo/components/counselor/mental_health_assessment_component.dart';
 import 'package:sentimo/components/counselor/appointment_list_component.dart';
+import 'package:sentimo/components/counselor/create_appointment_component.dart';
 
 class CounselorHomeScreen extends StatefulWidget {
   const CounselorHomeScreen({super.key});
@@ -44,6 +45,24 @@ class _CounselorHomeScreenState extends State<CounselorHomeScreen> with SingleTi
       );
     }
   }
+  
+  void _showCreateAppointmentScreen() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => CreateAppointmentComponent(
+          onCancel: () => Navigator.of(context).pop(),
+          onSubmit: (appointmentData) {
+            // Here you would typically save the appointment data to your backend
+            // For now, just show a success message and return to the previous screen
+            Navigator.of(context).pop();
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Appointment created successfully')),
+            );
+          },
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -77,11 +96,7 @@ class _CounselorHomeScreenState extends State<CounselorHomeScreen> with SingleTi
       ),
       floatingActionButton: _tabController.index == 1
           ? FloatingActionButton(
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Create new appointment (to be implemented)')),
-                );
-              },
+              onPressed: _showCreateAppointmentScreen,
               child: const Icon(Icons.add),
               tooltip: 'Create New Appointment',
             )
