@@ -240,11 +240,29 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
               label: 'Add Session Notes',
               onTap: _toggleEditMode,
             ),
+            const SizedBox(height: 12),
+            _buildActionButton(
+              icon: Icons.delete_outline,
+              label: 'Delete Appointment',
+              isDestructive: true,
+              onTap: () {
+                _showDeleteConfirmationDialog();
+              },
+            ),
           ] else if (_currentAppointment['status'] == 'Cancelled') ...[
             _buildActionButton(
               icon: Icons.restore,
               label: 'Reschedule Appointment',
               onTap: _toggleEditMode,
+            ),
+            const SizedBox(height: 12),
+            _buildActionButton(
+              icon: Icons.delete_outline,
+              label: 'Delete Appointment',
+              isDestructive: true,
+              onTap: () {
+                _showDeleteConfirmationDialog();
+              },
             ),
           ],
         ],
@@ -353,6 +371,56 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text('Yes, Cancel Appointment'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // New method for delete confirmation dialog
+  void _showDeleteConfirmationDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Appointment'),
+        content: const Text(
+          'Are you sure you want to delete this appointment?',
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).primaryColor,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            ),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              // Here you would add code to delete the appointment
+              // For now, just show a success message and navigate back
+              Navigator.pop(context); // Close dialog
+              Navigator.pop(context); // Return to previous screen
+              
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Appointment deleted successfully')),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            ),
+            child: const Text(
+              'Confirm',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
