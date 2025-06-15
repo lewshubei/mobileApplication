@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:sentimo/components/counselor/appointment_form_component.dart';
 
 class AppointmentDetailScreen extends StatefulWidget {
@@ -19,12 +20,57 @@ class AppointmentDetailScreen extends StatefulWidget {
 class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
   late Map<String, dynamic> _currentAppointment;
   bool _isEditing = false;
+  bool _isLoading = true;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   @override
   void initState() {
     super.initState();
-    // Create a deep copy of the appointment data to avoid modifying the original directly
+    // Initialize with passed data, but will be updated from Firestore
     _currentAppointment = Map<String, dynamic>.from(widget.appointment);
+    // Fetch complete appointment data from Firestore
+    _fetchAppointmentDetails();
+  }
+
+  // Fetch complete appointment data from Firestore using the document ID
+  Future<void> _fetchAppointmentDetails() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final String? appointmentId = _currentAppointment['id'];
+      if (appointmentId == null) {
+        throw Exception('Appointment ID is missing');
+      }
+
+      final DocumentSnapshot appointmentDoc = 
+          await _firestore.collection('appointments').doc(appointmentId).get();
+          
+      if (!appointmentDoc.exists) {
+        throw Exception('Appointment not found');
+      }
+
+      final appointmentData = appointmentDoc.data() as Map<String, dynamic>;
+      
+      // Add the ID to the data for later use
+      appointmentData['id'] = appointmentDoc.id;
+      
+      setState(() {
+        _currentAppointment = appointmentData;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error fetching appointment details: ${e.toString()}')),
+        );
+      }
+    }
   }
 
   void _toggleEditMode() {
@@ -33,20 +79,97 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
     });
   }
 
-  void _updateAppointment(Map<String, dynamic> updatedData) {
+  // Update the appointment in Firestore
+  Future<void> _updateAppointment(Map<String, dynamic> updatedData) async {
     setState(() {
-      _currentAppointment = updatedData;
-      _isEditing = false;
+      _isLoading = true;
     });
     
-    // Call the callback to notify parent about the update
-    if (widget.onUpdate != null) {
-      widget.onUpdate!(_currentAppointment);
+    try {
+      // Get the appointment ID
+      final appointmentId = _currentAppointment['id'];
+      if (appointmentId == null) {
+        throw Exception('Appointment ID is missing');
+      }
+      
+      // Create update fields map
+      final Map<String, dynamic> updateFields = {};
+      
+      // Handle datetime update
+      if (updatedData['datetime'] != null) {
+        // Convert DateTime to Firestore Timestamp
+        updateFields['datetime'] = Timestamp.fromDate(updatedData['datetime'] as DateTime);
+      }
+      
+      // Handle other fields
+      if (updatedData['notes'] != null) {
+        updateFields['notes'] = updatedData['notes'];
+      }
+      
+      if (updatedData['sessionType'] != null) {
+        updateFields['sessionType'] = updatedData['sessionType'];
+      }
+      
+      if (updatedData['status'] != null) {
+        updateFields['status'] = updatedData['status'];
+      }
+      
+      // Only proceed if we have fields to update
+      if (updateFields.isNotEmpty) {
+        // Update in Firestore
+        await _firestore
+            .collection('appointments')
+            .doc(appointmentId)
+            .update(updateFields);
+        
+        // Update the current appointment state with the new data
+        setState(() {
+          // Update each field individually to preserve other data
+          updateFields.forEach((key, value) {
+            _currentAppointment[key] = value;
+          });
+          
+          _isLoading = false;
+          _isEditing = false;
+        });
+        
+        // Call the callback to notify parent about the update
+        if (widget.onUpdate != null) {
+          widget.onUpdate!(_currentAppointment);
+        }
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Appointment updated successfully')),
+        );
+      } else {
+        setState(() {
+          _isLoading = false;
+          _isEditing = false;
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No changes to update')),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update appointment: ${e.toString()}')),
+        );
+      }
     }
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Appointment updated successfully')),
-    );
+  }
+
+  // Convert Firestore timestamp to DateTime for editing
+  DateTime _getAppointmentDateTime() {
+    if (_currentAppointment['datetime'] is Timestamp) {
+      return (_currentAppointment['datetime'] as Timestamp).toDate();
+    }
+    return DateTime.now(); // Fallback
   }
 
   @override
@@ -55,7 +178,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
       appBar: AppBar(
         title: Text(_isEditing ? 'Edit Appointment' : 'Appointment Details'),
         actions: [
-          if (!_isEditing)
+          if (!_isEditing && !_isLoading)
             IconButton(
               icon: const Icon(Icons.edit),
               onPressed: _toggleEditMode,
@@ -63,20 +186,31 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
             ),
         ],
       ),
-      body: _isEditing
-          ? AppointmentFormComponent(
-              initialData: _currentAppointment,
-              onCancel: _toggleEditMode,
-              onSubmit: _updateAppointment,
-            )
-          : _buildAppointmentDetails(),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _isEditing
+              ? AppointmentFormComponent(
+                  initialData: {
+                    'id': _currentAppointment['id'],
+                    'clientId': _currentAppointment['clientId'],
+                    'clientName': _currentAppointment['clientName'] ?? 'Client',
+                    'datetime': _getAppointmentDateTime(),
+                    'sessionType': _currentAppointment['sessionType'] ?? 'In-person',
+                    'status': _currentAppointment['status'] ?? 'upcoming',
+                    'notes': _currentAppointment['notes'] ?? '',
+                  },
+                  onCancel: _toggleEditMode,
+                  onSubmit: _updateAppointment,
+                )
+              : _buildAppointmentDetails(),
     );
   }
 
   Widget _buildAppointmentDetails() {
-    final Color statusColor = _getStatusColor(_currentAppointment['status']);
-    final IconData statusIcon = _getStatusIcon(_currentAppointment['status']);
+    final Color statusColor = _getStatusColor(_currentAppointment['status'] ?? '');
+    final IconData statusIcon = _getStatusIcon(_currentAppointment['status'] ?? '');
     final theme = Theme.of(context);
+    final DateTime appointmentDateTime = _getAppointmentDateTime();
     
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
@@ -96,7 +230,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                     backgroundColor: theme.primaryColor.withOpacity(0.1),
                     radius: 30,
                     child: Text(
-                      _currentAppointment['clientName'][0],
+                      (_currentAppointment['clientName'] ?? 'Client')[0],
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
@@ -110,7 +244,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          _currentAppointment['clientName'],
+                          _currentAppointment['clientName'] ?? 'Client',
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -131,7 +265,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                                   Icon(statusIcon, size: 16, color: statusColor),
                                   const SizedBox(width: 4),
                                   Text(
-                                    _currentAppointment['status'],
+                                    _currentAppointment['status'] ?? 'Unknown',
                                     style: TextStyle(
                                       color: statusColor,
                                       fontWeight: FontWeight.bold,
@@ -151,7 +285,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              _currentAppointment['sessionType'],
+                              _currentAppointment['sessionType'] ?? 'Unknown',
                               style: TextStyle(
                                 color: Colors.grey[600],
                                 fontSize: 12,
@@ -173,7 +307,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
             icon: Icons.calendar_today,
             child: Text(
               DateFormat('EEEE, MMMM d, yyyy • h:mm a')
-                  .format(_currentAppointment['dateTime']),
+                  .format(appointmentDateTime),
               style: const TextStyle(
                 fontSize: 16,
               ),
@@ -187,7 +321,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                 ? Icons.person
                 : Icons.video_call,
             child: Text(
-              _currentAppointment['sessionType'],
+              _currentAppointment['sessionType'] ?? 'Unknown',
               style: const TextStyle(
                 fontSize: 16,
               ),
@@ -218,7 +352,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
 
           // Action Buttons
           const SizedBox(height: 24),
-          if (_currentAppointment['status'] == 'Upcoming') ...[
+          if (_currentAppointment['status'] == 'upcoming') ...[
             _buildActionButton(
               icon: Icons.edit,
               label: 'Edit Appointment',
@@ -234,35 +368,11 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                 _showCancelConfirmationDialog();
               },
             ),
-          ] else if (_currentAppointment['status'] == 'Past') ...[
+          ] else if (_currentAppointment['status'] == 'completed') ...[
             _buildActionButton(
               icon: Icons.note_add,
               label: 'Add Session Notes',
               onTap: _toggleEditMode,
-            ),
-            const SizedBox(height: 12),
-            _buildActionButton(
-              icon: Icons.delete_outline,
-              label: 'Delete Appointment',
-              isDestructive: true,
-              onTap: () {
-                _showDeleteConfirmationDialog();
-              },
-            ),
-          ] else if (_currentAppointment['status'] == 'Cancelled') ...[
-            _buildActionButton(
-              icon: Icons.restore,
-              label: 'Reschedule Appointment',
-              onTap: _toggleEditMode,
-            ),
-            const SizedBox(height: 12),
-            _buildActionButton(
-              icon: Icons.delete_outline,
-              label: 'Delete Appointment',
-              isDestructive: true,
-              onTap: () {
-                _showDeleteConfirmationDialog();
-              },
             ),
           ],
         ],
@@ -363,11 +473,11 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
           ),
           TextButton(
             onPressed: () {
-              // Update appointment status to 'Cancelled' and handle the change
-              Map<String, dynamic> cancelledAppointment = Map<String, dynamic>.from(_currentAppointment);
-              cancelledAppointment['status'] = 'Cancelled';
-              _updateAppointment(cancelledAppointment);
               Navigator.pop(context);
+              // Update appointment status to 'cancelled'
+              final cancelledAppointment = Map<String, dynamic>.from(_currentAppointment);
+              cancelledAppointment['status'] = 'cancelled';
+              _updateAppointment(cancelledAppointment);
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text('Yes, Cancel Appointment'),
@@ -377,63 +487,13 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
     );
   }
 
-  // New method for delete confirmation dialog
-  void _showDeleteConfirmationDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Appointment'),
-        content: const Text(
-          'Are you sure you want to delete this appointment?',
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(context).primaryColor,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            ),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              // Here you would add code to delete the appointment
-              // For now, just show a success message and navigate back
-              Navigator.pop(context); // Close dialog
-              Navigator.pop(context); // Return to previous screen
-              
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Appointment deleted successfully')),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            ),
-            child: const Text(
-              'Confirm',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Color _getStatusColor(String status) {
-    switch (status) {
-      case 'Upcoming':
+    switch (status.toLowerCase()) {
+      case 'upcoming':
         return Colors.green;
-      case 'Past':
+      case 'completed':
         return Colors.blue;
-      case 'Cancelled':
+      case 'cancelled':
         return Colors.red;
       default:
         return Colors.grey;
@@ -441,12 +501,12 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
   }
 
   IconData _getStatusIcon(String status) {
-    switch (status) {
-      case 'Upcoming':
+    switch (status.toLowerCase()) {
+      case 'upcoming':
         return Icons.schedule;
-      case 'Past':
+      case 'completed':
         return Icons.done_all;
-      case 'Cancelled':
+      case 'cancelled':
         return Icons.cancel;
       default:
         return Icons.help_outline;

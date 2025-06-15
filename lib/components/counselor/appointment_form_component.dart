@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AppointmentFormComponent extends StatefulWidget {
   final Map<String, dynamic>? initialData;
@@ -21,22 +22,19 @@ class _AppointmentFormComponentState extends State<AppointmentFormComponent> {
   final _formKey = GlobalKey<FormState>();
   
   // Form fields
-  String? _selectedClient;
+  String? _clientId;
+  String? _selectedClientName;
   late DateTime _selectedDate;
   late TimeOfDay _selectedTime;
   late String _sessionType;
   late String _status;
   final TextEditingController _notesController = TextEditingController();
-
-  // Mock client list - replace with actual data source
-  final List<String> _mockClients = [
-    'Alex Johnson',
-    'Sarah Williams',
-    'Mike Chen',
-    'Emily Rogers',
-    'James Wilson',
-    'Lisa Thompson',
-  ];
+  String? _appointmentId;
+  
+  // Track if date or time was changed
+  bool _dateChanged = false;
+  bool _timeChanged = false;
+  late DateTime _originalDateTime;
 
   @override
   void initState() {
@@ -44,21 +42,34 @@ class _AppointmentFormComponentState extends State<AppointmentFormComponent> {
     
     if (widget.initialData != null) {
       // Initialize form with existing data
-      _selectedClient = widget.initialData!['clientName'];
+      _appointmentId = widget.initialData!['id'];
+      _clientId = widget.initialData!['clientId'];
+      _selectedClientName = widget.initialData!['clientName'];
       
-      final dateTime = widget.initialData!['dateTime'] as DateTime;
+      // Handle date/time from Firestore Timestamp or DateTime
+      DateTime dateTime;
+      if (widget.initialData!['datetime'] is Timestamp) {
+        dateTime = (widget.initialData!['datetime'] as Timestamp).toDate();
+      } else if (widget.initialData!['datetime'] is DateTime) {
+        dateTime = widget.initialData!['datetime'] as DateTime;
+      } else {
+        dateTime = DateTime.now();
+      }
+      
       _selectedDate = dateTime;
       _selectedTime = TimeOfDay(hour: dateTime.hour, minute: dateTime.minute);
+      _originalDateTime = dateTime;
       
       _sessionType = widget.initialData!['sessionType'] ?? 'In-person';
-      _status = widget.initialData!['status'] ?? 'Upcoming';
+      _status = widget.initialData!['status'] ?? 'upcoming';
       _notesController.text = widget.initialData!['notes'] ?? '';
     } else {
       // Initialize with default values for new appointment
       _selectedDate = DateTime.now().add(const Duration(days: 1));
       _selectedTime = TimeOfDay.now();
+      _originalDateTime = _selectedDate;
       _sessionType = 'In-person';
-      _status = 'Upcoming';
+      _status = 'upcoming';
     }
   }
 
@@ -87,7 +98,14 @@ class _AppointmentFormComponentState extends State<AppointmentFormComponent> {
     );
     if (picked != null && picked != _selectedDate) {
       setState(() {
-        _selectedDate = picked;
+        _selectedDate = DateTime(
+          picked.year,
+          picked.month,
+          picked.day,
+          _selectedTime.hour,
+          _selectedTime.minute,
+        );
+        _dateChanged = true;
       });
     }
   }
@@ -110,6 +128,7 @@ class _AppointmentFormComponentState extends State<AppointmentFormComponent> {
     if (picked != null && picked != _selectedTime) {
       setState(() {
         _selectedTime = picked;
+        _timeChanged = true;
       });
     }
   }
@@ -136,9 +155,11 @@ class _AppointmentFormComponentState extends State<AppointmentFormComponent> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildSectionTitle('Client'),
-              _buildClientField(),
-              const SizedBox(height: 24),
+              if (widget.initialData != null) ...[
+                _buildSectionTitle('Client'),
+                _buildClientField(),
+                const SizedBox(height: 24),
+              ],
               
               _buildSectionTitle('Date & Time'),
               _buildDateTimePicker(),
@@ -178,47 +199,14 @@ class _AppointmentFormComponentState extends State<AppointmentFormComponent> {
   }
 
   Widget _buildClientField() {
-    // If editing existing appointment, client name is read-only
-    if (widget.initialData != null) {
-      return InputDecorator(
-        decoration: InputDecoration(
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        ),
-        child: Text(_selectedClient ?? 'No client selected'),
-      );
-    }
-    
-    // For new appointments, show dropdown
-    return DropdownButtonFormField<String>(
+    return InputDecorator(
       decoration: InputDecoration(
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        hintText: 'Select a client',
       ),
-      value: _selectedClient,
-      isExpanded: true,
-      items: _mockClients.map<DropdownMenuItem<String>>((String value) {
-        return DropdownMenuItem<String>(
-          value: value,
-          child: Text(value),
-        );
-      }).toList(),
-      validator: (value) {
-        if (value == null || value.isEmpty) {
-          return 'Please select a client';
-        }
-        return null;
-      },
-      onChanged: (String? newValue) {
-        setState(() {
-          _selectedClient = newValue;
-        });
-      },
+      child: Text(_selectedClientName ?? 'No client selected'),
     );
   }
 
@@ -329,26 +317,25 @@ class _AppointmentFormComponentState extends State<AppointmentFormComponent> {
   }
 
   Widget _buildStatusSelector() {
-    // Use segmented button for status selection
     return SegmentedButton<String>(
       segments: const [
         ButtonSegment<String>(
-          value: 'Upcoming',
+          value: 'upcoming',
           label: Text('Upcoming'),
           icon: Icon(Icons.schedule),
         ),
         ButtonSegment<String>(
-          value: 'Completed',
+          value: 'completed',
           label: Text('Completed'),
           icon: Icon(Icons.done_all),
         ),
         ButtonSegment<String>(
-          value: 'Cancelled',
+          value: 'cancelled',
           label: Text('Cancelled'),
           icon: Icon(Icons.cancel),
         ),
       ],
-      selected: {_status},
+      selected: {_status.toLowerCase()},
       onSelectionChanged: (Set<String> selected) {
         setState(() {
           _status = selected.first;
@@ -417,8 +404,8 @@ class _AppointmentFormComponentState extends State<AppointmentFormComponent> {
 
   void _submitForm() {
     if (_formKey.currentState!.validate()) {
-      // Combine date and time into a single DateTime
-      final appointmentDateTime = DateTime(
+      // Create a complete DateTime that combines the selected date and time
+      final DateTime appointmentDateTime = DateTime(
         _selectedDate.year,
         _selectedDate.month,
         _selectedDate.day,
@@ -426,13 +413,21 @@ class _AppointmentFormComponentState extends State<AppointmentFormComponent> {
         _selectedTime.minute,
       );
 
-      final appointmentData = {
-        'clientName': _selectedClient,
-        'dateTime': appointmentDateTime,
+      final Map<String, dynamic> appointmentData = {
+        'id': _appointmentId, // Keep the ID for reference
+        'clientId': _clientId, // Keep the clientId
         'sessionType': _sessionType,
         'status': _status,
         'notes': _notesController.text,
+        
+        // Include client name just for UI display purposes
+        'clientName': _selectedClientName,
       };
+      
+      // Only include datetime if it was changed
+      if (_dateChanged || _timeChanged) {
+        appointmentData['datetime'] = appointmentDateTime;
+      }
 
       if (widget.onSubmit != null) {
         widget.onSubmit!(appointmentData);
