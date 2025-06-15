@@ -10,32 +10,6 @@ class StudentForumComponent extends StatefulWidget {
 }
 
 class _StudentForumComponentState extends State<StudentForumComponent> {
-  final List<Map<String, dynamic>> _posts = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchApprovedPosts();
-  }
-
-  // Fetch approved posts from Firestore
-  Future<void> _fetchApprovedPosts() async {
-    final snapshot =
-        await FirebaseFirestore.instance
-            .collection('forum_posts')
-            .where('approved', isEqualTo: true)
-            .orderBy('createdAt', descending: true)
-            .get();
-
-    final posts = snapshot.docs.map((doc) => doc.data()).toList();
-
-    setState(() {
-      _posts.clear();
-      _posts.addAll(posts);
-    });
-  }
-
-  // Show the "Create Post" dialog
   void _showCreatePostDialog() {
     final TextEditingController _titleController = TextEditingController();
     final TextEditingController _contentController = TextEditingController();
@@ -108,8 +82,7 @@ class _StudentForumComponentState extends State<StudentForumComponent> {
                               final userDoc = await userRef.get();
                               final userData =
                                   userDoc.data() as Map<String, dynamic>;
-
-                              final role = userDoc.data()?['role'] ?? 'student';
+                              final role = userData['role'] ?? 'student';
 
                               await FirebaseFirestore.instance
                                   .collection('forum_posts')
@@ -164,11 +137,117 @@ class _StudentForumComponentState extends State<StudentForumComponent> {
     );
   }
 
-  // Format timestamp into a readable string
   String _formatTimestamp(Timestamp? timestamp) {
     if (timestamp == null) return '';
     final dt = timestamp.toDate();
     return '${dt.day}/${dt.month}/${dt.year} ${dt.hour}:${dt.minute.toString().padLeft(2, '0')}';
+  }
+
+  void _showPostDetailsDialog(Map<String, dynamic> post) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 420),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Title + Close
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '📄 Post Details',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 20,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                  const Divider(),
+
+                  // Title
+                  Text(
+                    post['title'] ?? 'Untitled',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+
+                  // Posted by + Timestamp
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Posted by: ${post['authorName'] ?? 'Unknown User'}',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey.shade700,
+                        ),
+                      ),
+                      Text(
+                        _formatTimestamp(post['createdAt']),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Content
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Text(
+                        post['content'] ?? '',
+                        style: const TextStyle(fontSize: 14, height: 1.5),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Close button only
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.grey,
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 10,
+                            horizontal: 20,
+                          ),
+                        ),
+                        child: const Text(
+                          'Close',
+                          style: TextStyle(fontSize: 14),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -187,18 +266,17 @@ class _StudentForumComponentState extends State<StudentForumComponent> {
             ),
             const SizedBox(height: 24),
 
-            // Assessment Card
+            // Create Post Card
             Card(
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
-              elevation: 4, // Add shadow to the card for better visual depth
+              elevation: 4,
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Title Section
                     Row(
                       children: [
                         Icon(
@@ -211,29 +289,20 @@ class _StudentForumComponentState extends State<StudentForumComponent> {
                           'Got something to share?',
                           style: Theme.of(
                             context,
-                          ).textTheme.titleLarge?.copyWith(
-                            // fontWeight: FontWeight.bold,
-                            color: Colors.black,
-                          ),
+                          ).textTheme.titleLarge?.copyWith(color: Colors.black),
                         ),
                       ],
                     ),
                     const SizedBox(height: 16),
-
-                    // Description Section
                     const Text(
                       'Engage with the community by posting your thoughts, experiences, or concerns. All posts will be reviewed by admins before approval.',
                       style: TextStyle(fontSize: 16, color: Colors.black),
                     ),
                     const SizedBox(height: 20),
-
-                    // Button to Create Post
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: () {
-                          _showCreatePostDialog(); // Trigger post creation dialog
-                        },
+                        onPressed: _showCreatePostDialog,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.green.shade600,
                           foregroundColor: Colors.white,
@@ -241,7 +310,7 @@ class _StudentForumComponentState extends State<StudentForumComponent> {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          elevation: 5, // Add shadow for better focus
+                          elevation: 5,
                         ),
                         child: const Text(
                           'Create a New Post',
@@ -253,10 +322,8 @@ class _StudentForumComponentState extends State<StudentForumComponent> {
                 ),
               ),
             ),
-
             const SizedBox(height: 24),
 
-            // Approved Posts Section
             Text(
               'All Posts',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -265,6 +332,8 @@ class _StudentForumComponentState extends State<StudentForumComponent> {
               ),
             ),
             const SizedBox(height: 8),
+
+            // Posts with authorName mapping
             StreamBuilder<QuerySnapshot>(
               stream:
                   FirebaseFirestore.instance
@@ -272,48 +341,86 @@ class _StudentForumComponentState extends State<StudentForumComponent> {
                       .where('approved', isEqualTo: true)
                       .orderBy('createdAt', descending: true)
                       .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
+              builder: (context, postSnapshot) {
+                if (postSnapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
 
-                if (snapshot.hasError) {
-                  return Center(child: Text('Error: ${snapshot.error}'));
+                if (postSnapshot.hasError) {
+                  return Text('Error loading posts: ${postSnapshot.error}');
                 }
 
-                final posts = snapshot.data?.docs ?? [];
+                final posts = postSnapshot.data?.docs ?? [];
 
-                if (posts.isEmpty) {
-                  return const Center(child: Text('No approved posts yet.'));
-                }
+                return StreamBuilder<QuerySnapshot>(
+                  stream:
+                      FirebaseFirestore.instance
+                          .collection('users')
+                          .snapshots(),
+                  builder: (context, userSnapshot) {
+                    if (userSnapshot.connectionState ==
+                        ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
 
-                return ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: posts.length,
-                  itemBuilder: (context, index) {
-                    final post = posts[index].data() as Map<String, dynamic>;
-                    return Card(
-                      margin: const EdgeInsets.all(8),
-                      child: ListTile(
-                        title: Text(
-                          post['title'] ?? '',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(post['content'] ?? ''),
-                            const SizedBox(height: 6),
-                            Text(
-                              'Posted on ${_formatTimestamp(post['createdAt'])}',
+                    if (userSnapshot.hasError) {
+                      return Text('Error loading users: ${userSnapshot.error}');
+                    }
+
+                    final users = {
+                      for (var doc in userSnapshot.data!.docs)
+                        doc.id:
+                            (doc.data() as Map<String, dynamic>)['name'] ??
+                            'Unknown User',
+                    };
+
+                    final postList =
+                        posts.map((doc) {
+                          final data = doc.data() as Map<String, dynamic>;
+                          return {
+                            'id': doc.id,
+                            'title': data['title'] ?? '',
+                            'content': data['content'] ?? '',
+                            'createdAt': data['createdAt'],
+                            'authorId': data['authorId'],
+                            'authorName':
+                                users[data['authorId']] ?? 'Unknown User',
+                          };
+                        }).toList();
+
+                    return ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: postList.length,
+                      itemBuilder: (context, index) {
+                        final post = postList[index];
+                        return Card(
+                          margin: const EdgeInsets.all(8),
+                          child: ListTile(
+                            onTap: () => _showPostDetailsDialog(post),
+                            title: Text(
+                              post['title'],
                               style: const TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                          ],
-                        ),
-                      ),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(post['content']),
+                                const SizedBox(height: 6),
+                                Text(
+                                  'Posted by ${post['authorName']} on ${_formatTimestamp(post['createdAt'])}',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
                     );
                   },
                 );
