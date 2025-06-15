@@ -473,10 +473,8 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              // Update appointment status to 'cancelled'
-              final cancelledAppointment = Map<String, dynamic>.from(_currentAppointment);
-              cancelledAppointment['status'] = 'cancelled';
-              _updateAppointment(cancelledAppointment);
+              // Only update the status field, not the entire appointment object
+              _updateAppointment({'status': 'cancelled'});
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text('Yes, Cancel Appointment'),
