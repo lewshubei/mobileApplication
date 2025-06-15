@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:sentimo/components/counselor/appointment_service.dart';
 
 class AppointmentListComponent extends StatefulWidget {
   final Function(Map<String, dynamic>)? onAppointmentTap;
@@ -17,11 +19,30 @@ class _AppointmentListComponentState extends State<AppointmentListComponent> wit
   late TabController _tabController;
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
+  final AppointmentService _appointmentService = AppointmentService();
+  
+  // State variables
+  bool _isLoading = false;
+  String? _errorMessage;
+  List<Map<String, dynamic>> _appointments = [];
+  
+  // Get current user ID
+  final String _currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    
+    // Load appointments when tab changes
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging) {
+        _loadAppointments();
+      }
+    });
+    
+    // Initial data load
+    _loadAppointments();
   }
 
   @override
@@ -29,6 +50,64 @@ class _AppointmentListComponentState extends State<AppointmentListComponent> wit
     _tabController.dispose();
     _searchController.dispose();
     super.dispose();
+  }
+  
+  // Get current status filter based on selected tab
+  String _getCurrentStatusFilter() {
+    switch (_tabController.index) {
+      case 0:
+        return 'Upcoming';
+      case 1:
+        return 'Past';
+      case 2:
+        return 'Cancelled';
+      default:
+        return 'Upcoming';
+    }
+  }
+
+  // Load appointments from Firestore
+  Future<void> _loadAppointments() async {
+    if (_currentUserId.isEmpty) {
+      setState(() {
+        _errorMessage = 'User not logged in';
+        _isLoading = false;
+      });
+      return;
+    }
+    
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+    
+    try {
+      final String statusFilter = _getCurrentStatusFilter();
+      List<Map<String, dynamic>> appointments;
+      
+      if (_searchQuery.isEmpty) {
+        appointments = await _appointmentService.getAppointmentsForCounselor(
+          _currentUserId, 
+          statusFilter
+        );
+      } else {
+        appointments = await _appointmentService.searchAppointmentsByClientName(
+          _currentUserId, 
+          statusFilter,
+          _searchQuery
+        );
+      }
+      
+      setState(() {
+        _appointments = appointments;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Failed to load appointments: ${e.toString()}';
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -68,6 +147,7 @@ class _AppointmentListComponentState extends State<AppointmentListComponent> wit
           setState(() {
             _searchQuery = value;
           });
+          _loadAppointments(); // Reload appointments with search query
         },
         decoration: InputDecoration(
           hintText: 'Search by client name',
@@ -84,6 +164,7 @@ class _AppointmentListComponentState extends State<AppointmentListComponent> wit
                       _searchController.clear();
                       _searchQuery = '';
                     });
+                    _loadAppointments(); // Reload without search query
                   },
                 )
               : null,
@@ -93,20 +174,38 @@ class _AppointmentListComponentState extends State<AppointmentListComponent> wit
   }
 
   Widget _buildAppointmentList(String status) {
-    // This would be replaced by actual data from your database
-    // For now, we're using mock data
-    final List<Map<String, dynamic>> mockAppointments = _getMockAppointments(status);
+    // Show loading indicator
+    if (_isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
+    }
     
-    // Filter appointments based on search query
-    final filteredAppointments = _searchQuery.isEmpty
-        ? mockAppointments
-        : mockAppointments.where(
-            (appointment) => appointment['clientName']
-                .toLowerCase()
-                .contains(_searchQuery.toLowerCase()),
-          ).toList();
-
-    if (filteredAppointments.isEmpty) {
+    // Show error message if any
+    if (_errorMessage != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 48, color: Colors.red),
+            const SizedBox(height: 16),
+            Text(
+              _errorMessage!,
+              style: const TextStyle(color: Colors.red),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _loadAppointments,
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+    
+    // Show no appointments message if list is empty
+    if (_appointments.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -139,12 +238,13 @@ class _AppointmentListComponentState extends State<AppointmentListComponent> wit
         ),
       );
     }
-
+    
+    // Show appointments list
     return ListView.builder(
-      itemCount: filteredAppointments.length,
+      itemCount: _appointments.length,
       padding: const EdgeInsets.only(bottom: 16),
       itemBuilder: (context, index) {
-        final appointment = filteredAppointments[index];
+        final appointment = _appointments[index];
         return _buildAppointmentCard(appointment);
       },
     );
@@ -195,7 +295,9 @@ class _AppointmentListComponentState extends State<AppointmentListComponent> wit
                   CircleAvatar(
                     backgroundColor: Colors.grey[200],
                     child: Text(
-                      appointment['clientName'][0],
+                      appointment['clientName'] != null && appointment['clientName'].isNotEmpty 
+                          ? appointment['clientName'][0]
+                          : '?',
                       style: TextStyle(
                         color: Theme.of(context).primaryColor,
                         fontWeight: FontWeight.bold,
@@ -208,7 +310,7 @@ class _AppointmentListComponentState extends State<AppointmentListComponent> wit
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          appointment['clientName'],
+                          appointment['clientName'] ?? 'Unknown Client',
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
@@ -216,8 +318,10 @@ class _AppointmentListComponentState extends State<AppointmentListComponent> wit
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          DateFormat('EEEE, MMMM d, yyyy • h:mm a')
-                              .format(appointment['dateTime']),
+                          appointment['dateTime'] != null
+                              ? DateFormat('EEEE, MMMM d, yyyy • h:mm a')
+                                  .format(appointment['dateTime'])
+                              : 'No date available',
                           style: TextStyle(
                             color: Colors.grey[600],
                             fontSize: 14,
@@ -356,71 +460,5 @@ class _AppointmentListComponentState extends State<AppointmentListComponent> wit
         ),
       ),
     );
-  }
-
-  List<Map<String, dynamic>> _getMockAppointments(String status) {
-    final now = DateTime.now();
-
-    switch (status) {
-      case 'Upcoming':
-        return [
-          {
-            'id': '1',
-            'clientName': 'Alex Johnson',
-            'dateTime': now.add(const Duration(days: 1)),
-            'status': 'Upcoming',
-            'sessionType': 'In-person',
-            'notes': 'Follow-up session on anxiety management techniques'
-          },
-          {
-            'id': '2',
-            'clientName': 'Sarah Williams',
-            'dateTime': now.add(const Duration(days: 2, hours: 3)),
-            'status': 'Upcoming',
-            'sessionType': 'Online',
-            'notes': 'Initial assessment'
-          },
-          {
-            'id': '3',
-            'clientName': 'Mike Chen',
-            'dateTime': now.add(const Duration(days: 3, hours: 1)),
-            'status': 'Upcoming',
-            'sessionType': 'In-person',
-            'notes': ''
-          },
-        ];
-      case 'Past':
-        return [
-          {
-            'id': '4',
-            'clientName': 'Emily Rogers',
-            'dateTime': now.subtract(const Duration(days: 2)),
-            'status': 'Past',
-            'sessionType': 'Online',
-            'notes': 'Completed initial assessment. Scheduled follow-up in 2 weeks.'
-          },
-          {
-            'id': '5',
-            'clientName': 'James Wilson',
-            'dateTime': now.subtract(const Duration(days: 5)),
-            'status': 'Past',
-            'sessionType': 'In-person',
-            'notes': 'Discussed coping mechanisms for stress'
-          },
-        ];
-      case 'Cancelled':
-        return [
-          {
-            'id': '6',
-            'clientName': 'Lisa Thompson',
-            'dateTime': now.subtract(const Duration(days: 1)),
-            'status': 'Cancelled',
-            'sessionType': 'In-person',
-            'notes': 'Student had a scheduling conflict'
-          },
-        ];
-      default:
-        return [];
-    }
   }
 }

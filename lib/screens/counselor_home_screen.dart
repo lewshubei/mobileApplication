@@ -71,8 +71,8 @@ class _CounselorHomeScreenState extends State<CounselorHomeScreen> with SingleTi
         builder: (context) => AppointmentDetailScreen(
           appointment: appointment,
           onUpdate: (updatedAppointment) {
-            // Here you would typically update the appointment data in your backend
-            // For now, just show a success message
+            // Here you would update the appointment in Firestore
+            // and then refresh the appointments list
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Appointment updated successfully')),
             );
@@ -139,12 +139,6 @@ class _CounselorHomeScreenState extends State<CounselorHomeScreen> with SingleTi
             title: 'Profile',
             onTap: () => _navigateTo(context, const ProfileScreen()),
           ),
-          // _buildMenuTile(
-          //   context,
-          //   icon: Icons.settings,
-          //   title: 'Settings',
-          //   onTap: () {},
-          // ),
           const Divider(height: 1, thickness: 1),
           _buildMenuTile(
             context,
