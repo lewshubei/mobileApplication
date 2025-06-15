@@ -10,6 +10,7 @@ import 'package:sentimo/components/counselor/dashboard_component.dart';
 import 'package:sentimo/components/counselor/mental_health_assessment_component.dart';
 import 'package:sentimo/components/counselor/appointment_list_component.dart';
 import 'package:sentimo/components/counselor/create_appointment_component.dart';
+import 'package:sentimo/components/counselor/appointment_service.dart';
 
 class CounselorHomeScreen extends StatefulWidget {
   const CounselorHomeScreen({super.key});
@@ -21,6 +22,7 @@ class CounselorHomeScreen extends StatefulWidget {
 class _CounselorHomeScreenState extends State<CounselorHomeScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final AppointmentService _appointmentService = AppointmentService();
   
   // Add a key to access the appointment list component
   final GlobalKey _appointmentListKey = GlobalKey();
@@ -143,16 +145,45 @@ class _CounselorHomeScreenState extends State<CounselorHomeScreen> with SingleTi
           .doc(appointmentId)
           .update(appointmentData);
       
-      // Notification removed from here to avoid duplication
-      // The notification is already shown in appointment_detail_screen.dart
-      
-      // Refresh appointment list
-      _refreshAppointmentList();
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Appointment updated successfully')),
+        );
+        
+        // Refresh appointment list
+        _refreshAppointmentList();
+      }
     } catch (e) {
       // Show error message
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to update appointment: ${e.toString()}')),
+        );
+      }
+    }
+  }
+  
+  // Method to delete an appointment
+  Future<void> _deleteAppointment(String appointmentId) async {
+    try {
+      // Delete the appointment using the service
+      await _appointmentService.deleteAppointment(appointmentId);
+      
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Appointment deleted successfully')),
+        );
+        
+        // Refresh appointment list
+        _refreshAppointmentList();
+      }
+    } catch (e) {
+      // Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to delete appointment: ${e.toString()}')),
         );
       }
     }
@@ -184,6 +215,7 @@ class _CounselorHomeScreenState extends State<CounselorHomeScreen> with SingleTi
           AppointmentListComponent(
             key: _appointmentListKey,
             onAppointmentTap: _showAppointmentDetails,
+            onAppointmentDelete: _deleteAppointment,
           ),
           MentalHealthAssessmentComponent(
             user: user,

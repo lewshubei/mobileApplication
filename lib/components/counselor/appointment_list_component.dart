@@ -5,10 +5,12 @@ import 'package:sentimo/components/counselor/appointment_service.dart';
 
 class AppointmentListComponent extends StatefulWidget {
   final Function(Map<String, dynamic>)? onAppointmentTap;
+  final Function(String)? onAppointmentDelete;
 
   const AppointmentListComponent({
     super.key,
     this.onAppointmentTap,
+    this.onAppointmentDelete,
   });
 
   @override
@@ -130,6 +132,41 @@ class _AppointmentListComponentState extends State<AppointmentListComponent> wit
         });
       }
     }
+  }
+
+  // Method to handle appointment deletion
+  void _handleDeleteAppointment(String appointmentId) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Appointment'),
+        content: const Text('Are you sure you want to delete this appointment?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.grey[700],
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              if (widget.onAppointmentDelete != null) {
+                widget.onAppointmentDelete!(appointmentId);
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+            ),
+            child: const Text(
+              'Delete',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -434,6 +471,16 @@ class _AppointmentListComponentState extends State<AppointmentListComponent> wit
                         }
                       },
                     ),
+                    const SizedBox(width: 8),
+                    // Add delete button for completed appointments
+                    _buildActionButton(
+                      icon: Icons.delete,
+                      label: 'Delete',
+                      isDestructive: true,
+                      onTap: () {
+                        _handleDeleteAppointment(appointment['id']);
+                      },
+                    ),
                   ] else if (appointment['status'] == 'Cancelled') ...[
                     _buildActionButton(
                       icon: Icons.restore,
@@ -442,6 +489,16 @@ class _AppointmentListComponentState extends State<AppointmentListComponent> wit
                         if (widget.onAppointmentTap != null) {
                           widget.onAppointmentTap!(appointment);
                         }
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    // Add delete button for cancelled appointments
+                    _buildActionButton(
+                      icon: Icons.delete,
+                      label: 'Delete',
+                      isDestructive: true,
+                      onTap: () {
+                        _handleDeleteAppointment(appointment['id']);
                       },
                     ),
                   ],

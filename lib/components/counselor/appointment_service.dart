@@ -90,4 +90,17 @@ class AppointmentService {
       throw e;
     }
   }
+  
+  // Delete an appointment by ID
+  Future<void> deleteAppointment(String appointmentId) async {
+    try {
+      await _firestore
+          .collection('appointments')
+          .doc(appointmentId)
+          .delete();
+    } catch (e) {
+      print('Error deleting appointment: $e');
+      throw e;
+    }
+  }
 }
