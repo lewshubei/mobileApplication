@@ -261,7 +261,7 @@ class _StudentForumComponentState extends State<StudentForumComponent> {
               'All Posts',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: Colors.green.shade700,
+                color: Colors.black,
               ),
             ),
             const SizedBox(height: 8),

@@ -285,113 +285,287 @@ class _AdminForumComponentState extends State<AdminForumComponent> {
       builder: (BuildContext context) {
         return Dialog(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(20),
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Post Details',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  post['title'] ?? 'Untitled',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 420),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Title + Close
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Post Details',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 20,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
                   ),
-                ),
-                Text(
-                  _formatTimestamp(post['createdAt']),
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                ),
-                const SizedBox(height: 20),
-                Text(post['content'] ?? ''),
-                const SizedBox(height: 8),
-                // Text(
-                //   post['approved'] != null
-                //       ? post['approved'] == true
-                //           ? 'Approved'
-                //           : 'Rejected'
-                //       : 'Pending',
-                //   style: TextStyle(
-                //     fontSize: 14,
-                //     fontWeight: FontWeight.bold,
-                //     color:
-                //         post['approved'] == true
-                //             ? Colors.green
-                //             : post['approved'] == false
-                //             ? Colors.red
-                //             : Colors.orange,
-                //   ),
-                // ),
-                const SizedBox(height: 20),
+                  const Divider(),
 
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                      },
-                      style: TextButton.styleFrom(foregroundColor: Colors.grey),
-                      child: const Text('Cancel'),
+                  // Title & Author & Date
+                  Text(
+                    post['title'] ?? 'Untitled',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
                     ),
-                    const SizedBox(width: 10),
-                    ElevatedButton(
-                      onPressed: () {
-                        _updatePostStatus(post['id'], true);
-                        Navigator.pop(context);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        backgroundColor: Colors.green.shade600,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        padding: EdgeInsets.symmetric(
-                          vertical: 10,
-                          horizontal: 12,
-                        ),
-                      ),
-                      child: const Text(
-                        'Approve',
-                        style: TextStyle(fontSize: 14),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Posted by: ${post['authorName'] ?? 'Unknown User'}',
+                    style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _formatTimestamp(post['createdAt']),
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Content scrollable
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Text(
+                        post['content'] ?? '',
+                        style: const TextStyle(fontSize: 14, height: 1.5),
                       ),
                     ),
-                    const SizedBox(width: 10),
-                    ElevatedButton(
-                      onPressed: () {
-                        _updatePostStatus(post['id'], false);
-                        Navigator.pop(context);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        backgroundColor: Colors.red.shade600,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        padding: EdgeInsets.symmetric(
-                          vertical: 10,
-                          horizontal: 20,
-                        ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Status Badge
+                  if (post['approved'] != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
                       ),
-                      child: const Text(
-                        'Reject',
-                        style: TextStyle(fontSize: 14),
+                      decoration: BoxDecoration(
+                        color:
+                            post['approved'] == true
+                                ? Colors.green.shade100
+                                : post['rejected'] == true
+                                ? Colors.red.shade100
+                                : Colors.orange.shade100,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            post['approved'] == true
+                                ? Icons.check_circle
+                                : post['rejected'] == true
+                                ? Icons.cancel
+                                : Icons.hourglass_empty,
+                            size: 16,
+                            color:
+                                post['approved'] == true
+                                    ? Colors.green
+                                    : post['rejected'] == true
+                                    ? Colors.red
+                                    : Colors.orange,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            post['approved'] == true
+                                ? 'Approved'
+                                : post['rejected'] == true
+                                ? 'Rejected'
+                                : 'Pending',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color:
+                                  post['approved'] == true
+                                      ? Colors.green.shade800
+                                      : post['rejected'] == true
+                                      ? Colors.red.shade800
+                                      : Colors.orange.shade800,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
-                ),
-              ],
+
+                  const SizedBox(height: 20),
+
+                  // Action Buttons
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                        },
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.grey,
+                        ),
+                        child: const Text('Cancel'),
+                      ),
+                      const SizedBox(width: 10),
+
+                      // Approve with confirmation
+                      ElevatedButton(
+                        onPressed:
+                            post['approved'] == true
+                                ? null
+                                : () {
+                                  _confirmApproveDialog(post);
+                                },
+                        style: ElevatedButton.styleFrom(
+                          foregroundColor: Colors.white,
+                          backgroundColor: Colors.green.shade600,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 10,
+                            horizontal: 12,
+                          ),
+                        ),
+                        child: const Text(
+                          'Approve',
+                          style: TextStyle(fontSize: 14),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+
+                      // Reject with confirmation
+                      ElevatedButton(
+                        onPressed:
+                            post['rejected'] == true
+                                ? null
+                                : () {
+                                  _confirmRejectDialog(post);
+                                },
+                        style: ElevatedButton.styleFrom(
+                          foregroundColor: Colors.white,
+                          backgroundColor: Colors.red.shade600,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 10,
+                            horizontal: 20,
+                          ),
+                        ),
+                        child: const Text(
+                          'Reject',
+                          style: TextStyle(fontSize: 14),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
+        );
+      },
+    );
+  }
+
+  void _confirmApproveDialog(Map<String, dynamic> post) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Confirm Approval'),
+          content: const Text('Are you sure you want to approve this post?'),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.grey,
+                padding: const EdgeInsets.symmetric(
+                  vertical: 10,
+                  horizontal: 20,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                _updatePostStatus(post['id'], true);
+                Navigator.pop(context); // close confirmation
+                Navigator.pop(context); // close details dialog
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green.shade600,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  vertical: 10,
+                  horizontal: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text('Yes, Approve', style: TextStyle(fontSize: 14)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _confirmRejectDialog(Map<String, dynamic> post) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Confirm Rejection'),
+          content: const Text('Are you sure you want to reject this post?'),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.grey,
+                padding: const EdgeInsets.symmetric(
+                  vertical: 10,
+                  horizontal: 20,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                _updatePostStatus(post['id'], false);
+                Navigator.pop(context); // close confirmation
+                Navigator.pop(context); // close details dialog
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red.shade600,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  vertical: 10,
+                  horizontal: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text('Yes, Reject', style: TextStyle(fontSize: 14)),
+            ),
+          ],
         );
       },
     );
