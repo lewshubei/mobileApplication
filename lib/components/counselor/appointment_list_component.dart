@@ -17,8 +17,9 @@ class AppointmentListComponent extends StatefulWidget {
   State<AppointmentListComponent> createState() => _AppointmentListComponentState();
 }
 
-class _AppointmentListComponentState extends State<AppointmentListComponent> with SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin {
-  late TabController _tabController;
+class _AppointmentListComponentState extends State<AppointmentListComponent> with AutomaticKeepAliveClientMixin {
+  // Changed from TabController to simple index tracking
+  int _selectedIndex = 0;
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
   final AppointmentService _appointmentService = AppointmentService();
@@ -35,15 +36,6 @@ class _AppointmentListComponentState extends State<AppointmentListComponent> wit
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
-    
-    // Load appointments when tab changes
-    _tabController.addListener(() {
-      if (!_tabController.indexIsChanging) {
-        _loadAppointments();
-      }
-    });
-    
     // Initial data load
     _loadAppointments();
   }
@@ -63,7 +55,6 @@ class _AppointmentListComponentState extends State<AppointmentListComponent> wit
 
   @override
   void dispose() {
-    _tabController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -72,9 +63,9 @@ class _AppointmentListComponentState extends State<AppointmentListComponent> wit
   @override
   bool get wantKeepAlive => true;
   
-  // Get current status filter based on selected tab
+  // Get current status filter based on selected segment
   String _getCurrentStatusFilter() {
-    switch (_tabController.index) {
+    switch (_selectedIndex) {
       case 0:
         return 'Upcoming';
       case 1:
@@ -176,24 +167,30 @@ class _AppointmentListComponentState extends State<AppointmentListComponent> wit
     return Column(
       children: [
         _buildSearchBar(),
-        TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: 'Upcoming'),
-            Tab(text: 'Past'),
-            Tab(text: 'Cancelled'),
-          ],
-          labelColor: Theme.of(context).primaryColor,
+        // Replaced TabBar with SegmentedControl
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+          child: Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.grey[200],
+              borderRadius: BorderRadius.circular(8.0),
+            ),
+            child: SegmentedControl(
+              segments: const ['Upcoming', 'Past', 'Cancelled'],
+              currentIndex: _selectedIndex,
+              onSegmentTapped: (index) {
+                setState(() {
+                  _selectedIndex = index;
+                });
+                _loadAppointments(); // Reload appointments when segment changes
+              },
+              primaryColor: Theme.of(context).primaryColor,
+            ),
+          ),
         ),
         Expanded(
-          child: TabBarView(
-            controller: _tabController,
-            children: [
-              _buildAppointmentList('Upcoming'),
-              _buildAppointmentList('Past'),
-              _buildAppointmentList('Cancelled'),
-            ],
-          ),
+          child: _buildAppointmentList(_getCurrentStatusFilter()),
         ),
       ],
     );
@@ -522,6 +519,52 @@ class _AppointmentListComponentState extends State<AppointmentListComponent> wit
           ],
         ),
       ),
+    );
+  }
+}
+
+// Custom SegmentedControl widget for Flutter
+class SegmentedControl extends StatelessWidget {
+  final List<String> segments;
+  final int currentIndex;
+  final Function(int) onSegmentTapped;
+  final Color primaryColor;
+
+  const SegmentedControl({
+    super.key,
+    required this.segments,
+    required this.currentIndex,
+    required this.onSegmentTapped,
+    required this.primaryColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: List.generate(segments.length, (index) {
+        final isSelected = currentIndex == index;
+        return Expanded(
+          child: GestureDetector(
+            onTap: () => onSegmentTapped(index),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 12.0),
+              decoration: BoxDecoration(
+                color: isSelected ? primaryColor : Colors.transparent,
+                borderRadius: BorderRadius.circular(8.0),
+              ),
+              child: Text(
+                segments[index],
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : Colors.black87,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ),
+        );
+      }),
     );
   }
 }
