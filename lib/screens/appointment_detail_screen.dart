@@ -138,9 +138,8 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
           widget.onUpdate!(_currentAppointment);
         }
         
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Appointment updated successfully')),
-        );
+        // Removed the SnackBar here to fix duplicate notification issue
+        // The parent component (CounselorHomeScreen) will show the notification
       } else {
         setState(() {
           _isLoading = false;

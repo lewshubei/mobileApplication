@@ -442,26 +442,8 @@ class _AppointmentListComponentState extends State<AppointmentListComponent> wit
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  if (appointment['status'] == 'Upcoming') ...[
-                    _buildActionButton(
-                      icon: Icons.edit,
-                      label: 'Edit',
-                      onTap: () {
-                        if (widget.onAppointmentTap != null) {
-                          widget.onAppointmentTap!(appointment);
-                        }
-                      },
-                    ),
-                    const SizedBox(width: 8),
-                    _buildActionButton(
-                      icon: Icons.cancel_outlined,
-                      label: 'Cancel',
-                      isDestructive: true,
-                      onTap: () {
-                        // Will be implemented in future
-                      },
-                    ),
-                  ] else if (appointment['status'] == 'Past') ...[
+                  // Removed Edit and Cancel buttons for Upcoming appointments
+                  if (appointment['status'] == 'Past') ...[
                     _buildActionButton(
                       icon: Icons.note_add,
                       label: 'Add Notes',
