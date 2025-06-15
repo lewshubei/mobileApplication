@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:sentimo/components/counselor/student_service.dart';
 
 class CreateAppointmentComponent extends StatefulWidget {
   final VoidCallback? onCancel;
@@ -17,23 +19,45 @@ class CreateAppointmentComponent extends StatefulWidget {
 
 class _CreateAppointmentComponentState extends State<CreateAppointmentComponent> {
   final _formKey = GlobalKey<FormState>();
+  final StudentService _studentService = StudentService();
   
   // Form fields
-  String? _selectedClient;
+  String? _selectedClientId;
   DateTime _selectedDate = DateTime.now().add(const Duration(days: 1));
   TimeOfDay _selectedTime = TimeOfDay.now();
   String _sessionType = 'In-person';
   final TextEditingController _notesController = TextEditingController();
+  
+  // State variables
+  bool _isLoading = true;
+  String? _errorMessage;
+  List<Map<String, dynamic>> _students = [];
 
-  // Mock client list - replace with actual data source
-  final List<String> _mockClients = [
-    'Alex Johnson',
-    'Sarah Williams',
-    'Mike Chen',
-    'Emily Rogers',
-    'James Wilson',
-    'Lisa Thompson',
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadStudents();
+  }
+
+  Future<void> _loadStudents() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+    
+    try {
+      final students = await _studentService.getStudents();
+      setState(() {
+        _students = students;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Failed to load students: ${e.toString()}';
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -115,32 +139,58 @@ class _CreateAppointmentComponentState extends State<CreateAppointmentComponent>
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildSectionTitle('Client'),
-                _buildClientDropdown(),
-                const SizedBox(height: 24),
-                
-                _buildSectionTitle('Date & Time'),
-                _buildDateTimePicker(),
-                const SizedBox(height: 24),
-                
-                _buildSectionTitle('Session Type'),
-                _buildSessionTypeSelector(),
-                const SizedBox(height: 24),
-                
-                _buildSectionTitle('Notes (Optional)'),
-                _buildNotesField(),
-              ],
-            ),
+      body: _isLoading 
+        ? const Center(child: CircularProgressIndicator())
+        : _errorMessage != null
+            ? _buildErrorWidget()
+            : SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildSectionTitle('Client'),
+                        _buildClientDropdown(),
+                        const SizedBox(height: 24),
+                        
+                        _buildSectionTitle('Date & Time'),
+                        _buildDateTimePicker(),
+                        const SizedBox(height: 24),
+                        
+                        _buildSectionTitle('Session Type'),
+                        _buildSessionTypeSelector(),
+                        const SizedBox(height: 24),
+                        
+                        _buildSectionTitle('Notes (Optional)'),
+                        _buildNotesField(),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+    );
+  }
+
+  Widget _buildErrorWidget() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.error_outline, size: 48, color: Colors.red),
+          const SizedBox(height: 16),
+          Text(
+            _errorMessage!,
+            style: const TextStyle(color: Colors.red),
+            textAlign: TextAlign.center,
           ),
-        ),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: _loadStudents,
+            child: const Text('Retry'),
+          ),
+        ],
       ),
     );
   }
@@ -159,6 +209,17 @@ class _CreateAppointmentComponentState extends State<CreateAppointmentComponent>
   }
 
   Widget _buildClientDropdown() {
+    if (_students.isEmpty) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Center(
+            child: Text('No students available. Please add students first.'),
+          ),
+        ),
+      );
+    }
+    
     return DropdownButtonFormField<String>(
       decoration: InputDecoration(
         border: OutlineInputBorder(
@@ -167,12 +228,12 @@ class _CreateAppointmentComponentState extends State<CreateAppointmentComponent>
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         hintText: 'Select a client',
       ),
-      value: _selectedClient,
+      value: _selectedClientId,
       isExpanded: true,
-      items: _mockClients.map<DropdownMenuItem<String>>((String value) {
+      items: _students.map<DropdownMenuItem<String>>((student) {
         return DropdownMenuItem<String>(
-          value: value,
-          child: Text(value),
+          value: student['id'],
+          child: Text(student['name']),
         );
       }).toList(),
       validator: (value) {
@@ -183,7 +244,7 @@ class _CreateAppointmentComponentState extends State<CreateAppointmentComponent>
       },
       onChanged: (String? newValue) {
         setState(() {
-          _selectedClient = newValue;
+          _selectedClientId = newValue;
         });
       },
     );
@@ -320,10 +381,18 @@ class _CreateAppointmentComponentState extends State<CreateAppointmentComponent>
         _selectedTime.minute,
       );
 
+      // Find selected student's name for display
+      final selectedStudent = _students.firstWhere(
+        (student) => student['id'] == _selectedClientId,
+        orElse: () => {'name': 'Unknown'},
+      );
+
       final appointmentData = {
-        'clientName': _selectedClient,
-        'dateTime': appointmentDateTime,
-        'sessionType': _sessionType,
+        'clientId': _selectedClientId,
+        'clientName': selectedStudent['name'],
+        'datetime': Timestamp.fromDate(appointmentDateTime),
+        'sessionType': _sessionType, // Using the display format ('In-person' or 'Online')
+        'status': 'upcoming',
         'notes': _notesController.text,
       };
 

@@ -15,7 +15,7 @@ class AppointmentListComponent extends StatefulWidget {
   State<AppointmentListComponent> createState() => _AppointmentListComponentState();
 }
 
-class _AppointmentListComponentState extends State<AppointmentListComponent> with SingleTickerProviderStateMixin {
+class _AppointmentListComponentState extends State<AppointmentListComponent> with SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   late TabController _tabController;
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
@@ -25,6 +25,7 @@ class _AppointmentListComponentState extends State<AppointmentListComponent> wit
   bool _isLoading = false;
   String? _errorMessage;
   List<Map<String, dynamic>> _appointments = [];
+  DateTime _lastRefreshed = DateTime.now();
   
   // Get current user ID
   final String _currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
@@ -46,11 +47,28 @@ class _AppointmentListComponentState extends State<AppointmentListComponent> wit
   }
 
   @override
+  void didUpdateWidget(AppointmentListComponent oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    
+    // Check if enough time has passed since last refresh to avoid
+    // refreshing too frequently (e.g., during rapid state changes)
+    final now = DateTime.now();
+    if (now.difference(_lastRefreshed).inSeconds >= 1) {
+      _loadAppointments();
+      _lastRefreshed = now;
+    }
+  }
+
+  @override
   void dispose() {
     _tabController.dispose();
     _searchController.dispose();
     super.dispose();
   }
+  
+  // Keep the tab alive even when switching between tabs
+  @override
+  bool get wantKeepAlive => true;
   
   // Get current status filter based on selected tab
   String _getCurrentStatusFilter() {
@@ -98,20 +116,26 @@ class _AppointmentListComponentState extends State<AppointmentListComponent> wit
         );
       }
       
-      setState(() {
-        _appointments = appointments;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _appointments = appointments;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _errorMessage = 'Failed to load appointments: ${e.toString()}';
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Failed to load appointments: ${e.toString()}';
+          _isLoading = false;
+        });
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
+    
     return Column(
       children: [
         _buildSearchBar(),
