@@ -264,7 +264,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                                   Icon(statusIcon, size: 16, color: statusColor),
                                   const SizedBox(width: 4),
                                   Text(
-                                    _currentAppointment['status'] ?? 'Unknown',
+                                    _toTitleCase(_currentAppointment['status'] ?? 'Unknown'),
                                     style: TextStyle(
                                       color: statusColor,
                                       fontWeight: FontWeight.bold,
@@ -482,6 +482,12 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
         ],
       ),
     );
+  }
+
+  // Helper method to convert a string to Title Case
+  String _toTitleCase(String text) {
+    if (text.isEmpty) return text;
+    return text[0].toUpperCase() + text.substring(1);
   }
 
   Color _getStatusColor(String status) {
