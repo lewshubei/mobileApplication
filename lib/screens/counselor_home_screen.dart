@@ -143,15 +143,11 @@ class _CounselorHomeScreenState extends State<CounselorHomeScreen> with SingleTi
           .doc(appointmentId)
           .update(appointmentData);
       
-      // Show success message
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Appointment updated successfully')),
-        );
-        
-        // Refresh appointment list
-        _refreshAppointmentList();
-      }
+      // Notification removed from here to avoid duplication
+      // The notification is already shown in appointment_detail_screen.dart
+      
+      // Refresh appointment list
+      _refreshAppointmentList();
     } catch (e) {
       // Show error message
       if (mounted) {
