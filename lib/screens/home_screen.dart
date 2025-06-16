@@ -3,6 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
+import 'dart:typed_data';
 import 'package:sentimo/providers/user_provider.dart';
 import 'package:sentimo/screens/profile_screen.dart';
 import 'package:sentimo/screens/login_screen.dart';
@@ -172,6 +179,318 @@ class _HomeScreenState extends State<HomeScreen> {
         ).showSnackBar(SnackBar(content: Text('Failed to save mood: $e')));
       }
     }
+  }
+
+  Future<void> _shareAssessmentAsPdf(Map<String, dynamic> assessment) async {
+    try {
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      // Generate PDF
+      final pdf = await _generateAssessmentPdf(assessment);
+      
+      // Get temporary directory
+      final directory = await getTemporaryDirectory();
+      final file = File('${directory.path}/mood_assessment_${DateTime.now().millisecondsSinceEpoch}.pdf');
+      
+      // Write PDF to file
+      await file.writeAsBytes(pdf);
+      
+      // Close loading dialog
+      Navigator.pop(context);
+      
+      // Share the PDF file
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text: 'My Mood Assessment Results from Sentimo App',
+        subject: 'Mood Assessment Results',
+      );
+      
+    } catch (e) {
+      // Close loading dialog if still open
+      Navigator.pop(context);
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to share PDF: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<Uint8List> _generateAssessmentPdf(Map<String, dynamic> assessment) async {
+    final pdf = pw.Document();
+    final answers = assessment['answers'] as List<dynamic>;
+    final timestamp = assessment['timestamp'] as Timestamp?;
+    final score = assessment['score'] ?? 0.0;
+    final shared = assessment['shared_with_counselor'] ?? false;
+
+    // Define colors for different risk levels
+    PdfColor getRiskColor(double score) {
+      if (score >= 80) return PdfColors.red;
+      if (score >= 60) return PdfColors.orange;
+      if (score >= 40) return PdfColors.amber;
+      return PdfColors.green;
+    }
+
+    String getRiskLevel(double score) {
+      if (score >= 80) return 'High Risk - Seek Professional Help';
+      if (score >= 60) return 'Moderate Risk - Consider Support';
+      if (score >= 40) return 'Low Risk - Monitor Regularly';
+      return 'Good Mental Wellbeing';
+    }
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(32),
+        build: (pw.Context context) {
+          return [
+            // Header
+            pw.Container(
+              padding: const pw.EdgeInsets.only(bottom: 20),
+              decoration: const pw.BoxDecoration(
+                border: pw.Border(
+                  bottom: pw.BorderSide(width: 2, color: PdfColors.green),
+                ),
+              ),
+              child: pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text(
+                        'SENTIMO',
+                        style: pw.TextStyle(
+                          fontSize: 24,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.green,
+                        ),
+                      ),
+                      pw.Text(
+                        'Mental Health Assessment Report',
+                        style: pw.TextStyle(
+                          fontSize: 16,
+                          color: PdfColors.grey700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  pw.Container(
+                    padding: const pw.EdgeInsets.all(8),
+                    decoration: pw.BoxDecoration(
+                      color: getRiskColor(score),
+                      borderRadius: pw.BorderRadius.circular(8),
+                    ),
+                    child: pw.Text(
+                      '${score.toStringAsFixed(0)}%',
+                      style: pw.TextStyle(
+                        fontSize: 20,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            pw.SizedBox(height: 20),
+
+            // Assessment Info
+            pw.Container(
+              padding: const pw.EdgeInsets.all(16),
+              decoration: pw.BoxDecoration(
+                color: PdfColors.grey100,
+                borderRadius: pw.BorderRadius.circular(8),
+              ),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      pw.Text(
+                        'Assessment Date:',
+                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                      ),
+                      pw.Text(
+                        timestamp != null
+                            ? DateFormat('MMM dd, yyyy - hh:mm a').format(timestamp.toDate())
+                            : 'Unknown',
+                      ),
+                    ],
+                  ),
+                  pw.SizedBox(height: 8),
+                  pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      pw.Text(
+                        'Risk Level:',
+                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                      ),
+                      pw.Text(
+                        getRiskLevel(score),
+                        style: pw.TextStyle(
+                          color: getRiskColor(score),
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  pw.SizedBox(height: 8),
+                  pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      pw.Text(
+                        'Questions Answered:',
+                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                      ),
+                      pw.Text('${answers.length}'),
+                    ],
+                  ),
+                  if (shared) ...[
+                    pw.SizedBox(height: 8),
+                    pw.Row(
+                      children: [
+                        pw.Container(
+                          width: 12,
+                          height: 12,
+                          decoration: const pw.BoxDecoration(
+                            color: PdfColors.green,
+                            shape: pw.BoxShape.circle,
+                          ),
+                        ),
+                        pw.SizedBox(width: 8),
+                        pw.Text(
+                          'Shared with counselor',
+                          style: pw.TextStyle(
+                            color: PdfColors.green,
+                            fontWeight: pw.FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+
+            pw.SizedBox(height: 24),
+
+            // Risk Level Explanation
+            pw.Container(
+              padding: const pw.EdgeInsets.all(16),
+              decoration: pw.BoxDecoration(
+                border: pw.Border.all(color: getRiskColor(score)),
+                borderRadius: pw.BorderRadius.circular(8),
+              ),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text(
+                    'Understanding Your Results',
+                    style: pw.TextStyle(
+                      fontSize: 16,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                  pw.SizedBox(height: 12),
+                  pw.Text('0-39%: Excellent mental wellbeing'),
+                  pw.Text('40-59%: Good mental wellbeing'),
+                  pw.Text('60-79%: Moderate mental wellbeing - consider seeking support'),
+                  pw.Text('80-100%: Poor mental wellbeing - professional help recommended'),
+                ],
+              ),
+            ),
+
+            pw.SizedBox(height: 24),
+
+            // Questions and Answers
+            pw.Text(
+              'Assessment Details',
+              style: pw.TextStyle(
+                fontSize: 18,
+                fontWeight: pw.FontWeight.bold,
+              ),
+            ),
+            pw.SizedBox(height: 16),
+
+            ...answers.map((qa) {
+              return pw.Container(
+                margin: const pw.EdgeInsets.only(bottom: 16),
+                padding: const pw.EdgeInsets.all(12),
+                decoration: pw.BoxDecoration(
+                  border: pw.Border.all(color: PdfColors.grey300),
+                  borderRadius: pw.BorderRadius.circular(8),
+                ),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(
+                      qa['question'] ?? 'Unknown question',
+                      style: pw.TextStyle(
+                        fontWeight: pw.FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                    pw.SizedBox(height: 6),
+                    pw.Text(
+                      'Answer: ${qa['answer'] ?? 'No answer'}',
+                      style: const pw.TextStyle(fontSize: 11),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+
+            pw.SizedBox(height: 24),
+
+            // Footer
+            pw.Container(
+              padding: const pw.EdgeInsets.only(top: 20),
+              decoration: const pw.BoxDecoration(
+                border: pw.Border(
+                  top: pw.BorderSide(width: 1, color: PdfColors.grey300),
+                ),
+              ),
+              child: pw.Column(
+                children: [
+                  pw.Text(
+                    'This assessment is for informational purposes only and should not replace professional medical advice.',
+                    style: pw.TextStyle(
+                      fontSize: 10,
+                      color: PdfColors.grey600,
+                      fontStyle: pw.FontStyle.italic,
+                    ),
+                    textAlign: pw.TextAlign.center,
+                  ),
+                  pw.SizedBox(height: 8),
+                  pw.Text(
+                    'Generated by Sentimo App - ${DateFormat('MMM dd, yyyy').format(DateTime.now())}',
+                    style: pw.TextStyle(
+                      fontSize: 10,
+                      color: PdfColors.grey600,
+                    ),
+                    textAlign: pw.TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ];
+        },
+      ),
+    );
+
+    return pdf.save();
   }
 
   Future<void> _signOut(BuildContext context) async {
@@ -1446,17 +1765,30 @@ class _HomeScreenState extends State<HomeScreen> {
                           ],
                         ],
                       ),
-                      if (assessment['score'] != null)
-                        Text(
-                          '${assessment['score'].toStringAsFixed(0)}%',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                            color: _getAssessmentRiskTextColor(
-                              assessment['score'] ?? 0,
+                      Row(
+                        children: [
+                          if (assessment['score'] != null)
+                            Text(
+                              '${assessment['score'].toStringAsFixed(0)}%',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: _getAssessmentRiskTextColor(
+                                  assessment['score'] ?? 0,
+                                ),
+                              ),
                             ),
+                          const SizedBox(width: 8),
+                          // Add share button
+                          IconButton(
+                            icon: const Icon(Icons.send, size: 20),
+                            onPressed: () => _shareAssessmentAsPdf(assessment),
+                            tooltip: 'Share as PDF',
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
                           ),
-                        ),
+                        ],
+                      ),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -1507,9 +1839,30 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Assessment Details',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Assessment Details',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.send),
+                            onPressed: () {
+                              Navigator.pop(context);
+                              _shareAssessmentAsPdf(assessment);
+                            },
+                            tooltip: 'Share as PDF',
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
 
                   const SizedBox(height: 12),
