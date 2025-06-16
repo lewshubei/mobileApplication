@@ -164,7 +164,7 @@ class _StudentForumComponentState extends State<StudentForumComponent> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        '📄 Post Details',
+                        'Post Details',
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.bold,
                           fontSize: 20,
@@ -377,14 +377,19 @@ class _StudentForumComponentState extends State<StudentForumComponent> {
                     final postList =
                         posts.map((doc) {
                           final data = doc.data() as Map<String, dynamic>;
+                          final authorId = data['authorId'];
+                          final role = data['role'] ?? 'student';
+
                           return {
                             'id': doc.id,
                             'title': data['title'] ?? '',
                             'content': data['content'] ?? '',
                             'createdAt': data['createdAt'],
-                            'authorId': data['authorId'],
+                            'authorId': authorId,
                             'authorName':
-                                users[data['authorId']] ?? 'Unknown User',
+                                role == 'admin'
+                                    ? (users[authorId] ?? 'Admin')
+                                    : 'anonymous',
                           };
                         }).toList();
 
