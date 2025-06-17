@@ -6,11 +6,13 @@ import 'package:sentimo/components/counselor/student_service.dart';
 class CreateAppointmentComponent extends StatefulWidget {
   final VoidCallback? onCancel;
   final Function(Map<String, dynamic>)? onSubmit;
+  final String? preSelectedStudentId; // Added parameter for pre-selected student
 
   const CreateAppointmentComponent({
     super.key,
     this.onCancel,
     this.onSubmit,
+    this.preSelectedStudentId, // Optional parameter for pre-selecting a student
   });
 
   @override
@@ -50,6 +52,11 @@ class _CreateAppointmentComponentState extends State<CreateAppointmentComponent>
       setState(() {
         _students = students;
         _isLoading = false;
+        
+        // If a pre-selected student ID was provided, set it
+        if (widget.preSelectedStudentId != null) {
+          _selectedClientId = widget.preSelectedStudentId;
+        }
       });
     } catch (e) {
       setState(() {
