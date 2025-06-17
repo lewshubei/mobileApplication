@@ -11,20 +11,39 @@ class StudentService {
           .where('role', isEqualTo: 'student')
           .get();
 
-      // Process the results
+      // Get all user_assessments where shared_with_counselor is true
+      QuerySnapshot assessmentSnapshot = await _firestore
+          .collection('user_assessments')
+          .where('shared_with_counselor', isEqualTo: true)
+          .get();
+
+      // Create a set of eligible user IDs from assessments
+      Set<String> eligibleUserIds = {};
+      for (var doc in assessmentSnapshot.docs) {
+        Map<String, dynamic> assessmentData = doc.data() as Map<String, dynamic>;
+        if (assessmentData.containsKey('userId')) {
+          eligibleUserIds.add(assessmentData['userId']);
+        }
+      }
+
+      // Process the results, filtering for students whose ID is in eligibleUserIds
       List<Map<String, dynamic>> students = [];
       for (var doc in studentSnapshot.docs) {
         Map<String, dynamic> studentData = doc.data() as Map<String, dynamic>;
+        String userId = doc.id;
         
-        // Add document ID to the map
-        studentData['id'] = doc.id;
-        
-        // Make sure we have a name for display
-        studentData['name'] = studentData['name'] ?? 
-                             studentData['displayName'] ?? 
-                             'Unnamed Student';
-        
-        students.add(studentData);
+        // Only include students who have shared assessments
+        if (eligibleUserIds.contains(userId)) {
+          // Add document ID to the map
+          studentData['id'] = userId;
+          
+          // Make sure we have a name for display
+          studentData['name'] = studentData['name'] ?? 
+                               studentData['displayName'] ?? 
+                               'Unnamed Student';
+          
+          students.add(studentData);
+        }
       }
 
       // Sort alphabetically by name
