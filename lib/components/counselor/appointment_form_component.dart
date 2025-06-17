@@ -156,7 +156,7 @@ class _AppointmentFormComponentState extends State<AppointmentFormComponent> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (widget.initialData != null) ...[
-                _buildSectionTitle('Client'),
+                _buildSectionTitle('Student'),
                 _buildClientField(),
                 const SizedBox(height: 24),
               ],

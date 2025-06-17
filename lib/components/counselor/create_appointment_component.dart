@@ -151,7 +151,7 @@ class _CreateAppointmentComponentState extends State<CreateAppointmentComponent>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildSectionTitle('Client'),
+                        _buildSectionTitle('Student'),
                         _buildClientDropdown(),
                         const SizedBox(height: 24),
                         
@@ -226,7 +226,7 @@ class _CreateAppointmentComponentState extends State<CreateAppointmentComponent>
           borderRadius: BorderRadius.circular(10),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        hintText: 'Select a client',
+        hintText: 'Select a student',
       ),
       value: _selectedClientId,
       isExpanded: true,
@@ -238,7 +238,7 @@ class _CreateAppointmentComponentState extends State<CreateAppointmentComponent>
       }).toList(),
       validator: (value) {
         if (value == null || value.isEmpty) {
-          return 'Please select a client';
+          return 'Please select a student';
         }
         return null;
       },

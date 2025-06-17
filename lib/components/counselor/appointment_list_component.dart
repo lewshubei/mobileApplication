@@ -208,7 +208,7 @@ class _AppointmentListComponentState extends State<AppointmentListComponent> wit
           _loadAppointments(); // Reload appointments with search query
         },
         decoration: InputDecoration(
-          hintText: 'Search by client name',
+          hintText: 'Search by student name',
           prefixIcon: const Icon(Icons.search),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
