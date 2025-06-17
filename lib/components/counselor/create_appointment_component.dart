@@ -132,12 +132,6 @@ class _CreateAppointmentComponentState extends State<CreateAppointmentComponent>
           icon: const Icon(Icons.close),
           onPressed: widget.onCancel,
         ),
-        actions: [
-          TextButton(
-            onPressed: _submitForm,
-            child: const Text('SAVE'),
-          ),
-        ],
       ),
       body: _isLoading 
         ? const Center(child: CircularProgressIndicator())
@@ -165,6 +159,9 @@ class _CreateAppointmentComponentState extends State<CreateAppointmentComponent>
                         
                         _buildSectionTitle('Notes (Optional)'),
                         _buildNotesField(),
+                        const SizedBox(height: 32),
+                        
+                        _buildActionButtons(),
                       ],
                     ),
                   ),
@@ -367,6 +364,41 @@ class _CreateAppointmentComponentState extends State<CreateAppointmentComponent>
         hintText: 'Add any notes about this appointment...',
         contentPadding: const EdgeInsets.all(16),
       ),
+    );
+  }
+
+  // Add the action buttons widget that matches the AppointmentFormComponent style
+  Widget _buildActionButtons() {
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton(
+            onPressed: widget.onCancel,
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text('CANCEL'),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: ElevatedButton(
+            onPressed: _submitForm,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).primaryColor,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text('SAVE'),
+          ),
+        ),
+      ],
     );
   }
 
