@@ -465,7 +465,7 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
           final appointmentDoc = appointments.first;
           final appointmentData = appointmentDoc.data() as Map<String, dynamic>;
           final appointmentId = appointmentDoc.id;
-          final counselorName = appointmentData['counselorName'] ?? 'Unknown Counselor';
+          final counselorId = appointmentData['counselorId'];
           final appointmentTimestamp = appointmentData['datetime'] as Timestamp?;
           final appointmentDateTime = appointmentTimestamp?.toDate();
           final formattedDate = appointmentDateTime != null 
@@ -475,97 +475,118 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
           final status = appointmentData['status'] ?? 'upcoming';
           final bool canReschedule = status.toLowerCase() == 'upcoming';
 
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  const Icon(Icons.event, size: 20, color: Colors.grey),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      'Appointment Information',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.grey.shade800,
-                      ),
-                    ),
-                  ),
-                  // Add the kebab menu with context-specific options
-                  PopupMenuButton<String>(
-                    icon: const Icon(Icons.more_vert, size: 20),
-                    padding: EdgeInsets.zero,
-                    tooltip: 'Appointment options',
-                    itemBuilder: (context) => <PopupMenuEntry<String>>[
-                      const PopupMenuItem<String>(
-                        value: 'new',
-                        child: Text('New Appointment'),
-                      ),
-                      if (canReschedule)
-                        const PopupMenuItem<String>(
-                          value: 'reschedule',
-                          child: Text('Reschedule'),
-                        ),
-                      if (canReschedule)
-                        const PopupMenuItem<String>(
-                          value: 'cancel',
-                          child: Text('Cancel'),
-                        ),
-                    ],
-                    onSelected: (value) {
-                      switch (value) {
-                        case 'new':
-                          _makeAppointment(context);
-                          break;
-                        case 'reschedule':
-                          _rescheduleAppointment(context, appointmentId);
-                          break;
-                        case 'cancel':
-                          _cancelAppointment(context, appointmentId);
-                          break;
-                      }
-                    },
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Column(
+          // Use FutureBuilder to fetch counselor name from users collection
+          return FutureBuilder<DocumentSnapshot>(
+            future: FirebaseFirestore.instance.collection('users').doc(counselorId).get(),
+            builder: (context, counselorSnapshot) {
+              // Default counselor name (while loading or if error occurs)
+              String counselorName = appointmentData['counselorName'] ?? 'Unknown Counselor';
+              
+              // If we successfully retrieved the counselor document, get the name
+              if (counselorSnapshot.connectionState == ConnectionState.done && 
+                  counselorSnapshot.hasData && 
+                  counselorSnapshot.data!.exists) {
+                final counselorData = counselorSnapshot.data!.data() as Map<String, dynamic>?;
+                if (counselorData != null) {
+                  counselorName = counselorData['name'] ?? 
+                                 counselorData['displayName'] ?? 
+                                 counselorName;
+                }
+              }
+              
+              return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'With: $counselorName',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w500,
-                      color: Colors.teal.shade700,
-                    ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.event, size: 20, color: Colors.grey),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Appointment Information',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.grey.shade800,
+                          ),
+                        ),
+                      ),
+                      // Add the kebab menu with context-specific options
+                      PopupMenuButton<String>(
+                        icon: const Icon(Icons.more_vert, size: 20),
+                        padding: EdgeInsets.zero,
+                        tooltip: 'Appointment options',
+                        itemBuilder: (context) => <PopupMenuEntry<String>>[
+                          const PopupMenuItem<String>(
+                            value: 'new',
+                            child: Text('New Appointment'),
+                          ),
+                          if (canReschedule)
+                            const PopupMenuItem<String>(
+                              value: 'reschedule',
+                              child: Text('Reschedule'),
+                            ),
+                          if (canReschedule)
+                            const PopupMenuItem<String>(
+                              value: 'cancel',
+                              child: Text('Cancel'),
+                            ),
+                        ],
+                        onSelected: (value) {
+                          switch (value) {
+                            case 'new':
+                              _makeAppointment(context);
+                              break;
+                            case 'reschedule':
+                              _rescheduleAppointment(context, appointmentId);
+                              break;
+                            case 'cancel':
+                              _cancelAppointment(context, appointmentId);
+                              break;
+                          }
+                        },
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Date: $formattedDate',
-                    style: TextStyle(
-                      color: Colors.grey.shade700,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Type: $sessionType',
-                    style: TextStyle(
-                      color: Colors.grey.shade700,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Status: ${status.substring(0, 1).toUpperCase()}${status.substring(1)}',
-                    style: TextStyle(
-                      color: _getStatusColor(status),
-                      fontWeight: FontWeight.w500,
-                    ),
+                  const SizedBox(height: 8),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'With: $counselorName',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w500,
+                          color: Colors.teal.shade700,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Date: $formattedDate',
+                        style: TextStyle(
+                          color: Colors.grey.shade700,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Type: $sessionType',
+                        style: TextStyle(
+                          color: Colors.grey.shade700,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Status: ${status.substring(0, 1).toUpperCase()}${status.substring(1)}',
+                        style: TextStyle(
+                          color: _getStatusColor(status),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
-              ),
-            ],
+              );
+            }
           );
         } else {
           // If no appointment exists, show fallback message with assigned counselor info if available
