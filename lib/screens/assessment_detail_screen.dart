@@ -144,6 +144,92 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
       );
     }
   }
+
+  void _rescheduleAppointment(BuildContext context, String appointmentId) async {
+    try {
+      // Get the current appointment data
+      final appointmentDoc = await FirebaseFirestore.instance
+          .collection('appointments')
+          .doc(appointmentId)
+          .get();
+          
+      if (!appointmentDoc.exists) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Appointment not found')),
+        );
+        return;
+      }
+      
+      // Get the current user (counselor)
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('You must be logged in to reschedule appointments')),
+        );
+        return;
+      }
+      
+      // Navigate to the Create Appointment screen with pre-filled data
+      final appointmentData = appointmentDoc.data() as Map<String, dynamic>;
+      
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => CreateAppointmentComponent(
+            onCancel: () => Navigator.of(context).pop(),
+            onSubmit: (updatedData) => _updateAppointment(appointmentId, updatedData),
+            preSelectedStudentId: widget.studentId,
+            // Could pass other pre-filled appointment data here if CreateAppointmentComponent supports it
+          ),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error rescheduling appointment: $e')),
+      );
+    }
+  }
+
+  void _cancelAppointment(BuildContext context, String appointmentId) async {
+    try {
+      // Show confirmation dialog
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Cancel Appointment'),
+          content: const Text('Are you sure you want to cancel this appointment?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('NO'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('YES'),
+            ),
+          ],
+        ),
+      );
+      
+      if (confirmed != true) return;
+      
+      // Update appointment status to cancelled
+      await FirebaseFirestore.instance
+          .collection('appointments')
+          .doc(appointmentId)
+          .update({
+            'status': 'cancelled',
+            'cancelledAt': FieldValue.serverTimestamp(),
+          });
+          
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Appointment cancelled successfully')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error cancelling appointment: $e')),
+      );
+    }
+  }
   
   Future<void> _createAppointment(Map<String, dynamic> appointmentData, String counselorId) async {
     try {
@@ -170,6 +256,33 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to create appointment: ${e.toString()}')),
+        );
+      }
+    }
+  }
+  
+  Future<void> _updateAppointment(String appointmentId, Map<String, dynamic> appointmentData) async {
+    try {
+      // Update the existing appointment
+      await FirebaseFirestore.instance
+          .collection('appointments')
+          .doc(appointmentId)
+          .update(appointmentData);
+      
+      // Return to previous screen
+      if (mounted) {
+        Navigator.of(context).pop();
+        
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Appointment rescheduled successfully')),
+        );
+      }
+    } catch (e) {
+      // Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to reschedule appointment: ${e.toString()}')),
         );
       }
     }
@@ -322,11 +435,12 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
 
   Widget _buildCounselorAssignment(BuildContext context) {
     return StreamBuilder<QuerySnapshot>(
-      stream:
-          FirebaseFirestore.instance
-              .collection('users')
-              .where('role', isEqualTo: 'counselor')
-              .snapshots(),
+      stream: FirebaseFirestore.instance
+          .collection('appointments')
+          .where('studentId', isEqualTo: widget.studentId)
+          .orderBy('datetime', descending: true)
+          .limit(1)
+          .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(
@@ -339,96 +453,212 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
 
         if (snapshot.hasError) {
           return Text(
-            'Error loading counselors: ${snapshot.error}',
+            'Error loading appointment information: ${snapshot.error}',
             style: TextStyle(color: Colors.red.shade400),
           );
         }
 
-        final counselors = snapshot.data?.docs ?? [];
+        final appointments = snapshot.data?.docs ?? [];
+        
+        // Check if there's an appointment for this student
+        if (appointments.isNotEmpty) {
+          final appointmentDoc = appointments.first;
+          final appointmentData = appointmentDoc.data() as Map<String, dynamic>;
+          final appointmentId = appointmentDoc.id;
+          final counselorName = appointmentData['counselorName'] ?? 'Unknown Counselor';
+          final appointmentTimestamp = appointmentData['datetime'] as Timestamp?;
+          final appointmentDateTime = appointmentTimestamp?.toDate();
+          final formattedDate = appointmentDateTime != null 
+              ? DateFormat('MMMM dd, yyyy - HH:mm').format(appointmentDateTime) 
+              : 'Date not specified';
+          final sessionType = appointmentData['sessionType'] ?? 'Not specified';
+          final status = appointmentData['status'] ?? 'upcoming';
+          final bool canReschedule = status.toLowerCase() == 'upcoming';
 
-        if (counselors.isEmpty) {
-          return const Text(
-            'No counselors available',
-            style: TextStyle(fontStyle: FontStyle.italic),
-          );
-        }
-
-        String currentAssignmentText = 'Not assigned';
-
-        if (selectedCounselorId != null) {
-          // Use firstWhereOrNull instead of firstWhere with orElse
-          final assignedCounselorDoc = counselors.firstWhereOrNull(
-            (doc) => doc.id == selectedCounselorId,
-          );
-
-          if (assignedCounselorDoc != null) {
-            final counselorData =
-                assignedCounselorDoc.data() as Map<String, dynamic>?;
-            if (counselorData != null) {
-              currentAssignmentText =
-                  'Assigned to: ${counselorData['name'] ?? counselorData['displayName'] ?? 'Unknown Counselor'}';
-            }
-          } else {
-            // Handle case where counselor ID exists but counselor is not in list
-            currentAssignmentText =
-                'Assigned to counselor (ID: ${selectedCounselorId!.substring(0, Math.min(4, selectedCounselorId!.length))}...)';
-          }
-        }
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const Icon(Icons.person_outline, size: 20, color: Colors.grey),
-                const SizedBox(width: 6),
-                Text(
-                  'Counselor Assignment',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.grey.shade800,
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const Icon(Icons.event, size: 20, color: Colors.grey),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Appointment Information',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey.shade800,
+                      ),
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    currentAssignmentText,
+                  // Add the kebab menu with context-specific options
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert, size: 20),
+                    padding: EdgeInsets.zero,
+                    tooltip: 'Appointment options',
+                    itemBuilder: (context) => <PopupMenuEntry<String>>[
+                      const PopupMenuItem<String>(
+                        value: 'new',
+                        child: Text('New Appointment'),
+                      ),
+                      if (canReschedule)
+                        const PopupMenuItem<String>(
+                          value: 'reschedule',
+                          child: Text('Reschedule'),
+                        ),
+                      if (canReschedule)
+                        const PopupMenuItem<String>(
+                          value: 'cancel',
+                          child: Text('Cancel'),
+                        ),
+                    ],
+                    onSelected: (value) {
+                      switch (value) {
+                        case 'new':
+                          _makeAppointment(context);
+                          break;
+                        case 'reschedule':
+                          _rescheduleAppointment(context, appointmentId);
+                          break;
+                        case 'cancel':
+                          _cancelAppointment(context, appointmentId);
+                          break;
+                      }
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'With: $counselorName',
                     style: TextStyle(
                       fontWeight: FontWeight.w500,
-                      color:
-                          selectedCounselorId != null
-                              ? Colors.teal.shade700
-                              : Colors.grey.shade600,
+                      color: Colors.teal.shade700,
                     ),
                   ),
-                ),
-                ElevatedButton(
-                  onPressed: () => _makeAppointment(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.teal.shade50,
-                    foregroundColor: Colors.teal.shade700,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
+                  const SizedBox(height: 4),
+                  Text(
+                    'Date: $formattedDate',
+                    style: TextStyle(
+                      color: Colors.grey.shade700,
                     ),
                   ),
-                  child: const Text('Make Appointment'),
-                ),
-              ],
-            ),
-          ],
-        );
+                  const SizedBox(height: 4),
+                  Text(
+                    'Type: $sessionType',
+                    style: TextStyle(
+                      color: Colors.grey.shade700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Status: ${status.substring(0, 1).toUpperCase()}${status.substring(1)}',
+                    style: TextStyle(
+                      color: _getStatusColor(status),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          );
+        } else {
+          // If no appointment exists, show fallback message with assigned counselor info if available
+          return StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('users')
+                .where('role', isEqualTo: 'counselor')
+                .snapshots(),
+            builder: (context, counselorSnapshot) {
+              String currentAssignmentText = 'No appointment assigned yet';
+
+              // Check if student has assigned counselor
+              if (selectedCounselorId != null && counselorSnapshot.hasData) {
+                final counselors = counselorSnapshot.data?.docs ?? [];
+                final assignedCounselorDoc = counselors.firstWhereOrNull(
+                  (doc) => doc.id == selectedCounselorId,
+                );
+
+                if (assignedCounselorDoc != null) {
+                  final counselorData = assignedCounselorDoc.data() as Map<String, dynamic>?;
+                  if (counselorData != null) {
+                    currentAssignmentText =
+                        'Assigned counselor: ${counselorData['name'] ?? counselorData['displayName'] ?? 'Unknown Counselor'}';
+                  }
+                }
+              }
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.event, size: 20, color: Colors.grey),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Appointment Information',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.grey.shade800,
+                          ),
+                        ),
+                      ),
+                      // Add the kebab menu with only new appointment option
+                      PopupMenuButton<String>(
+                        icon: const Icon(Icons.more_vert, size: 20),
+                        padding: EdgeInsets.zero,
+                        tooltip: 'Appointment options',
+                        itemBuilder: (context) => <PopupMenuEntry<String>>[
+                          const PopupMenuItem<String>(
+                            value: 'new',
+                            child: Text('New Appointment'),
+                          ),
+                        ],
+                        onSelected: (value) {
+                          if (value == 'new') {
+                            _makeAppointment(context);
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    currentAssignmentText,
+                    style: TextStyle(
+                      fontStyle: FontStyle.italic,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ],
+              );
+            },
+          );
+        }
       },
     );
+  }
+
+  // Add this helper method to the _AssessmentDetailScreenState class
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'upcoming':
+        return Colors.blue.shade700;
+      case 'completed':
+        return Colors.green.shade700;
+      case 'cancelled':
+        return Colors.red.shade700;
+      default:
+        return Colors.grey.shade700;
+    }
   }
 
   void _showCounselorSelectionDialog(
