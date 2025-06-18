@@ -359,7 +359,7 @@ class _StudentAssignmentComponentState
                         'Score: ${highestScore.toStringAsFixed(0)}%',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: _getAssessmentRiskTextColor(highestScore!),
+                          color: _getAssessmentRiskTextColor(highestScore),
                         ),
                       ),
                     ],

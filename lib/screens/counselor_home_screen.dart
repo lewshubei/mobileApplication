@@ -19,11 +19,12 @@ class CounselorHomeScreen extends StatefulWidget {
   State<CounselorHomeScreen> createState() => _CounselorHomeScreenState();
 }
 
-class _CounselorHomeScreenState extends State<CounselorHomeScreen> with SingleTickerProviderStateMixin {
+class _CounselorHomeScreenState extends State<CounselorHomeScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final AppointmentService _appointmentService = AppointmentService();
-  
+
   // Add a key to access the appointment list component
   final GlobalKey _appointmentListKey = GlobalKey();
 
@@ -31,7 +32,7 @@ class _CounselorHomeScreenState extends State<CounselorHomeScreen> with SingleTi
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    
+
     // Listen to tab changes to update floating action button visibility
     _tabController.addListener(() {
       // Call setState to rebuild the widget when tab changes
@@ -53,7 +54,7 @@ class _CounselorHomeScreenState extends State<CounselorHomeScreen> with SingleTi
       );
     }
   }
-  
+
   // Add a method to refresh the appointment list component
   void _refreshAppointmentList() {
     // Force rebuild of the AppointmentListComponent
@@ -64,43 +65,51 @@ class _CounselorHomeScreenState extends State<CounselorHomeScreen> with SingleTi
       });
     }
   }
-  
+
   void _showCreateAppointmentScreen() {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('You must be logged in to create appointments')),
+        const SnackBar(
+          content: Text('You must be logged in to create appointments'),
+        ),
       );
       return;
     }
 
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => CreateAppointmentComponent(
-          onCancel: () => Navigator.of(context).pop(),
-          onSubmit: (appointmentData) => _createAppointment(appointmentData, user.uid),
-        ),
+        builder:
+            (context) => CreateAppointmentComponent(
+              onCancel: () => Navigator.of(context).pop(),
+              onSubmit:
+                  (appointmentData) =>
+                      _createAppointment(appointmentData, user.uid),
+            ),
       ),
     );
   }
 
-  Future<void> _createAppointment(Map<String, dynamic> appointmentData, String counselorId) async {
+  Future<void> _createAppointment(
+    Map<String, dynamic> appointmentData,
+    String counselorId,
+  ) async {
     try {
       // Add counselor ID to the appointment data
       appointmentData['counselorId'] = counselorId;
-      
+
       // Save to Firestore
       await _firestore.collection('appointments').add(appointmentData);
-      
+
       // Return to previous screen
       if (mounted) {
         Navigator.of(context).pop();
-        
+
         // Show success message
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Appointment created successfully')),
         );
-        
+
         // Refresh the appointment list
         _refreshAppointmentList();
       }
@@ -108,49 +117,54 @@ class _CounselorHomeScreenState extends State<CounselorHomeScreen> with SingleTi
       // Show error message
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to create appointment: ${e.toString()}')),
+          SnackBar(
+            content: Text('Failed to create appointment: ${e.toString()}'),
+          ),
         );
       }
     }
   }
-  
+
   void _showAppointmentDetails(Map<String, dynamic> appointment) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => AppointmentDetailScreen(
-          appointment: appointment,
-          onUpdate: (updatedAppointment) {
-            _updateAppointment(updatedAppointment);
-          },
-        ),
+        builder:
+            (context) => AppointmentDetailScreen(
+              appointment: appointment,
+              onUpdate: (updatedAppointment) {
+                _updateAppointment(updatedAppointment);
+              },
+            ),
       ),
     );
   }
-  
-  Future<void> _updateAppointment(Map<String, dynamic> updatedAppointment) async {
+
+  Future<void> _updateAppointment(
+    Map<String, dynamic> updatedAppointment,
+  ) async {
     try {
       // Get the appointment ID
       final appointmentId = updatedAppointment['id'];
       if (appointmentId == null) {
         throw Exception('Appointment ID is missing');
       }
-      
+
       // Create a copy without the ID field to update in Firestore
       final appointmentData = Map<String, dynamic>.from(updatedAppointment);
       appointmentData.remove('id');
-      
+
       // Update in Firestore
       await _firestore
           .collection('appointments')
           .doc(appointmentId)
           .update(appointmentData);
-      
+
       // Show success message
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Appointment updated successfully')),
         );
-        
+
         // Refresh appointment list
         _refreshAppointmentList();
       }
@@ -158,24 +172,26 @@ class _CounselorHomeScreenState extends State<CounselorHomeScreen> with SingleTi
       // Show error message
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update appointment: ${e.toString()}')),
+          SnackBar(
+            content: Text('Failed to update appointment: ${e.toString()}'),
+          ),
         );
       }
     }
   }
-  
+
   // Method to delete an appointment
   Future<void> _deleteAppointment(String appointmentId) async {
     try {
       // Delete the appointment using the service
       await _appointmentService.deleteAppointment(appointmentId);
-      
+
       // Show success message
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Appointment deleted successfully')),
         );
-        
+
         // Refresh appointment list
         _refreshAppointmentList();
       }
@@ -183,7 +199,9 @@ class _CounselorHomeScreenState extends State<CounselorHomeScreen> with SingleTi
       // Show error message
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to delete appointment: ${e.toString()}')),
+          SnackBar(
+            content: Text('Failed to delete appointment: ${e.toString()}'),
+          ),
         );
       }
     }
@@ -223,13 +241,14 @@ class _CounselorHomeScreenState extends State<CounselorHomeScreen> with SingleTi
           ),
         ],
       ),
-      floatingActionButton: _tabController.index == 1
-          ? FloatingActionButton(
-              onPressed: _showCreateAppointmentScreen,
-              child: const Icon(Icons.add),
-              tooltip: 'Create New Appointment',
-            )
-          : null,
+      floatingActionButton:
+          _tabController.index == 1
+              ? FloatingActionButton(
+                onPressed: _showCreateAppointmentScreen,
+                tooltip: 'Create New Appointment',
+                child: const Icon(Icons.add),
+              )
+              : null,
     );
   }
 

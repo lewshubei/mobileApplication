@@ -490,7 +490,6 @@ class _AdminForumComponentState extends State<AdminForumComponent> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
               style: TextButton.styleFrom(
                 foregroundColor: Colors.grey,
                 padding: const EdgeInsets.symmetric(
@@ -498,6 +497,7 @@ class _AdminForumComponentState extends State<AdminForumComponent> {
                   horizontal: 20,
                 ),
               ),
+              child: const Text('Cancel'),
             ),
             ElevatedButton(
               onPressed: () {
@@ -537,7 +537,6 @@ class _AdminForumComponentState extends State<AdminForumComponent> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
               style: TextButton.styleFrom(
                 foregroundColor: Colors.grey,
                 padding: const EdgeInsets.symmetric(
@@ -545,6 +544,7 @@ class _AdminForumComponentState extends State<AdminForumComponent> {
                   horizontal: 20,
                 ),
               ),
+              child: const Text('Cancel'),
             ),
             ElevatedButton(
               onPressed: () {
@@ -591,8 +591,8 @@ class _AdminForumComponentState extends State<AdminForumComponent> {
   }
 
   void _showCreatePostDialog() {
-    final TextEditingController _titleController = TextEditingController();
-    final TextEditingController _contentController = TextEditingController();
+    final TextEditingController titleController = TextEditingController();
+    final TextEditingController contentController = TextEditingController();
 
     showDialog(
       context: context,
@@ -616,7 +616,7 @@ class _AdminForumComponentState extends State<AdminForumComponent> {
                   ),
                   const SizedBox(height: 20),
                   TextField(
-                    controller: _titleController,
+                    controller: titleController,
                     decoration: InputDecoration(
                       labelText: 'Title',
                       hintText: 'Enter title here',
@@ -627,7 +627,7 @@ class _AdminForumComponentState extends State<AdminForumComponent> {
                   ),
                   const SizedBox(height: 16),
                   TextField(
-                    controller: _contentController,
+                    controller: contentController,
                     maxLines: 5,
                     decoration: InputDecoration(
                       labelText: 'Content',
@@ -650,8 +650,8 @@ class _AdminForumComponentState extends State<AdminForumComponent> {
                       ),
                       ElevatedButton(
                         onPressed: () async {
-                          final title = _titleController.text.trim();
-                          final content = _contentController.text.trim();
+                          final title = titleController.text.trim();
+                          final content = contentController.text.trim();
 
                           if (title.isNotEmpty && content.isNotEmpty) {
                             try {

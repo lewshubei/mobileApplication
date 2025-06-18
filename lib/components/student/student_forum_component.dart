@@ -11,8 +11,8 @@ class StudentForumComponent extends StatefulWidget {
 
 class _StudentForumComponentState extends State<StudentForumComponent> {
   void _showCreatePostDialog() {
-    final TextEditingController _titleController = TextEditingController();
-    final TextEditingController _contentController = TextEditingController();
+    final TextEditingController titleController = TextEditingController();
+    final TextEditingController contentController = TextEditingController();
 
     showDialog(
       context: context,
@@ -36,7 +36,7 @@ class _StudentForumComponentState extends State<StudentForumComponent> {
                   ),
                   const SizedBox(height: 20),
                   TextField(
-                    controller: _titleController,
+                    controller: titleController,
                     decoration: InputDecoration(
                       labelText: 'Title',
                       hintText: 'Enter title here',
@@ -47,7 +47,7 @@ class _StudentForumComponentState extends State<StudentForumComponent> {
                   ),
                   const SizedBox(height: 16),
                   TextField(
-                    controller: _contentController,
+                    controller: contentController,
                     maxLines: 5,
                     decoration: InputDecoration(
                       labelText: 'Content',
@@ -70,8 +70,8 @@ class _StudentForumComponentState extends State<StudentForumComponent> {
                       ),
                       ElevatedButton(
                         onPressed: () async {
-                          final title = _titleController.text.trim();
-                          final content = _contentController.text.trim();
+                          final title = titleController.text.trim();
+                          final content = contentController.text.trim();
 
                           if (title.isNotEmpty && content.isNotEmpty) {
                             try {

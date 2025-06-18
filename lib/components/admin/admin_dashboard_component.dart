@@ -635,8 +635,9 @@ Color _getAssessmentRiskTextColor(num score) {
 }
 
 String getScoreDescription(num score) {
-  if (score >= 80)
+  if (score >= 80) {
     return 'Needs attention - Consider speaking with a counselor';
+  }
   if (score >= 60) return 'Moderat mental wellbeing';
   if (score >= 40) return 'Good mental wellbeing';
   return 'Excellent mental wellbeing';
