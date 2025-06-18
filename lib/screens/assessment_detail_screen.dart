@@ -320,13 +320,16 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
     );
   }
 
+  // Replacement for the _buildCounselorAssignment method in assessment_detail_screen.dart
+
   Widget _buildCounselorAssignment(BuildContext context) {
     return StreamBuilder<QuerySnapshot>(
-      stream:
-          FirebaseFirestore.instance
-              .collection('users')
-              .where('role', isEqualTo: 'counselor')
-              .snapshots(),
+      stream: FirebaseFirestore.instance
+          .collection('appointments')
+          .where('studentId', isEqualTo: widget.studentId)
+          .orderBy('datetime', descending: true)
+          .limit(1)
+          .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(
@@ -339,96 +342,195 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
 
         if (snapshot.hasError) {
           return Text(
-            'Error loading counselors: ${snapshot.error}',
+            'Error loading appointment information: ${snapshot.error}',
             style: TextStyle(color: Colors.red.shade400),
           );
         }
 
-        final counselors = snapshot.data?.docs ?? [];
+        final appointments = snapshot.data?.docs ?? [];
+        
+        // Check if there's an appointment for this student
+        if (appointments.isNotEmpty) {
+          final appointmentData = appointments.first.data() as Map<String, dynamic>;
+          final counselorName = appointmentData['counselorName'] ?? 'Unknown Counselor';
+          final appointmentTimestamp = appointmentData['datetime'] as Timestamp?;
+          final appointmentDateTime = appointmentTimestamp?.toDate();
+          final formattedDate = appointmentDateTime != null 
+              ? DateFormat('MMMM dd, yyyy - HH:mm').format(appointmentDateTime) 
+              : 'Date not specified';
+          final sessionType = appointmentData['sessionType'] ?? 'Not specified';
+          final status = appointmentData['status'] ?? 'upcoming';
 
-        if (counselors.isEmpty) {
-          return const Text(
-            'No counselors available',
-            style: TextStyle(fontStyle: FontStyle.italic),
-          );
-        }
-
-        String currentAssignmentText = 'Not assigned';
-
-        if (selectedCounselorId != null) {
-          // Use firstWhereOrNull instead of firstWhere with orElse
-          final assignedCounselorDoc = counselors.firstWhereOrNull(
-            (doc) => doc.id == selectedCounselorId,
-          );
-
-          if (assignedCounselorDoc != null) {
-            final counselorData =
-                assignedCounselorDoc.data() as Map<String, dynamic>?;
-            if (counselorData != null) {
-              currentAssignmentText =
-                  'Assigned to: ${counselorData['name'] ?? counselorData['displayName'] ?? 'Unknown Counselor'}';
-            }
-          } else {
-            // Handle case where counselor ID exists but counselor is not in list
-            currentAssignmentText =
-                'Assigned to counselor (ID: ${selectedCounselorId!.substring(0, Math.min(4, selectedCounselorId!.length))}...)';
-          }
-        }
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const Icon(Icons.person_outline, size: 20, color: Colors.grey),
-                const SizedBox(width: 6),
-                Text(
-                  'Counselor Assignment',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.grey.shade800,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    currentAssignmentText,
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const Icon(Icons.event, size: 20, color: Colors.grey),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Appointment Information',
                     style: TextStyle(
+                      fontSize: 15,
                       fontWeight: FontWeight.w500,
-                      color:
-                          selectedCounselorId != null
-                              ? Colors.teal.shade700
-                              : Colors.grey.shade600,
+                      color: Colors.grey.shade800,
                     ),
                   ),
-                ),
-                ElevatedButton(
-                  onPressed: () => _makeAppointment(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.teal.shade50,
-                    foregroundColor: Colors.teal.shade700,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'With: $counselorName',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w500,
+                            color: Colors.teal.shade700,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Date: $formattedDate',
+                          style: TextStyle(
+                            color: Colors.grey.shade700,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Type: $sessionType',
+                          style: TextStyle(
+                            color: Colors.grey.shade700,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Status: ${status.substring(0, 1).toUpperCase()}${status.substring(1)}',
+                          style: TextStyle(
+                            color: _getStatusColor(status),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  child: const Text('Make Appointment'),
-                ),
-              ],
-            ),
-          ],
-        );
+                  ElevatedButton(
+                    onPressed: () => _makeAppointment(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.teal.shade50,
+                      foregroundColor: Colors.teal.shade700,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                    ),
+                    child: const Text('New Appointment'),
+                  ),
+                ],
+              ),
+            ],
+          );
+        } else {
+          // If no appointment exists, show fallback message with assigned counselor info if available
+          return StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('users')
+                .where('role', isEqualTo: 'counselor')
+                .snapshots(),
+            builder: (context, counselorSnapshot) {
+              String currentAssignmentText = 'No appointment assigned yet';
+
+              // Check if student has assigned counselor
+              if (selectedCounselorId != null && counselorSnapshot.hasData) {
+                final counselors = counselorSnapshot.data?.docs ?? [];
+                final assignedCounselorDoc = counselors.firstWhereOrNull(
+                  (doc) => doc.id == selectedCounselorId,
+                );
+
+                if (assignedCounselorDoc != null) {
+                  final counselorData = assignedCounselorDoc.data() as Map<String, dynamic>?;
+                  if (counselorData != null) {
+                    currentAssignmentText =
+                        'Assigned counselor: ${counselorData['name'] ?? counselorData['displayName'] ?? 'Unknown Counselor'}';
+                  }
+                }
+              }
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.event, size: 20, color: Colors.grey),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Appointment Information',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey.shade800,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          currentAssignmentText,
+                          style: TextStyle(
+                            fontStyle: FontStyle.italic,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ),
+                      ElevatedButton(
+                        onPressed: () => _makeAppointment(context),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.teal.shade50,
+                          foregroundColor: Colors.teal.shade700,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                        ),
+                        child: const Text('Make Appointment'),
+                      ),
+                    ],
+                  ),
+                ],
+              );
+            },
+          );
+        }
       },
     );
+  }
+
+  // Add this helper method to the _AssessmentDetailScreenState class
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'upcoming':
+        return Colors.blue.shade700;
+      case 'completed':
+        return Colors.green.shade700;
+      case 'cancelled':
+        return Colors.red.shade700;
+      default:
+        return Colors.grey.shade700;
+    }
   }
 
   void _showCounselorSelectionDialog(
