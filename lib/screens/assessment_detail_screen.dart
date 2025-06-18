@@ -144,6 +144,92 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
       );
     }
   }
+
+  void _rescheduleAppointment(BuildContext context, String appointmentId) async {
+    try {
+      // Get the current appointment data
+      final appointmentDoc = await FirebaseFirestore.instance
+          .collection('appointments')
+          .doc(appointmentId)
+          .get();
+          
+      if (!appointmentDoc.exists) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Appointment not found')),
+        );
+        return;
+      }
+      
+      // Get the current user (counselor)
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('You must be logged in to reschedule appointments')),
+        );
+        return;
+      }
+      
+      // Navigate to the Create Appointment screen with pre-filled data
+      final appointmentData = appointmentDoc.data() as Map<String, dynamic>;
+      
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => CreateAppointmentComponent(
+            onCancel: () => Navigator.of(context).pop(),
+            onSubmit: (updatedData) => _updateAppointment(appointmentId, updatedData),
+            preSelectedStudentId: widget.studentId,
+            // Could pass other pre-filled appointment data here if CreateAppointmentComponent supports it
+          ),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error rescheduling appointment: $e')),
+      );
+    }
+  }
+
+  void _cancelAppointment(BuildContext context, String appointmentId) async {
+    try {
+      // Show confirmation dialog
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Cancel Appointment'),
+          content: const Text('Are you sure you want to cancel this appointment?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('NO'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('YES'),
+            ),
+          ],
+        ),
+      );
+      
+      if (confirmed != true) return;
+      
+      // Update appointment status to cancelled
+      await FirebaseFirestore.instance
+          .collection('appointments')
+          .doc(appointmentId)
+          .update({
+            'status': 'cancelled',
+            'cancelledAt': FieldValue.serverTimestamp(),
+          });
+          
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Appointment cancelled successfully')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error cancelling appointment: $e')),
+      );
+    }
+  }
   
   Future<void> _createAppointment(Map<String, dynamic> appointmentData, String counselorId) async {
     try {
@@ -170,6 +256,33 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to create appointment: ${e.toString()}')),
+        );
+      }
+    }
+  }
+  
+  Future<void> _updateAppointment(String appointmentId, Map<String, dynamic> appointmentData) async {
+    try {
+      // Update the existing appointment
+      await FirebaseFirestore.instance
+          .collection('appointments')
+          .doc(appointmentId)
+          .update(appointmentData);
+      
+      // Return to previous screen
+      if (mounted) {
+        Navigator.of(context).pop();
+        
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Appointment rescheduled successfully')),
+        );
+      }
+    } catch (e) {
+      // Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to reschedule appointment: ${e.toString()}')),
         );
       }
     }
@@ -320,8 +433,6 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
     );
   }
 
-  // Replacement for the _buildCounselorAssignment method in assessment_detail_screen.dart
-
   Widget _buildCounselorAssignment(BuildContext context) {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
@@ -351,7 +462,9 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
         
         // Check if there's an appointment for this student
         if (appointments.isNotEmpty) {
-          final appointmentData = appointments.first.data() as Map<String, dynamic>;
+          final appointmentDoc = appointments.first;
+          final appointmentData = appointmentDoc.data() as Map<String, dynamic>;
+          final appointmentId = appointmentDoc.id;
           final counselorName = appointmentData['counselorName'] ?? 'Unknown Counselor';
           final appointmentTimestamp = appointmentData['datetime'] as Timestamp?;
           final appointmentDateTime = appointmentTimestamp?.toDate();
@@ -360,6 +473,7 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
               : 'Date not specified';
           final sessionType = appointmentData['sessionType'] ?? 'Not specified';
           final status = appointmentData['status'] ?? 'upcoming';
+          final bool canReschedule = status.toLowerCase() == 'upcoming';
 
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -369,69 +483,85 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
                 children: [
                   const Icon(Icons.event, size: 20, color: Colors.grey),
                   const SizedBox(width: 6),
-                  Text(
-                    'Appointment Information',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.grey.shade800,
+                  Expanded(
+                    child: Text(
+                      'Appointment Information',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey.shade800,
+                      ),
                     ),
+                  ),
+                  // Add the kebab menu with context-specific options
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert, size: 20),
+                    padding: EdgeInsets.zero,
+                    tooltip: 'Appointment options',
+                    itemBuilder: (context) => <PopupMenuEntry<String>>[
+                      const PopupMenuItem<String>(
+                        value: 'new',
+                        child: Text('New Appointment'),
+                      ),
+                      if (canReschedule)
+                        const PopupMenuItem<String>(
+                          value: 'reschedule',
+                          child: Text('Reschedule'),
+                        ),
+                      if (canReschedule)
+                        const PopupMenuItem<String>(
+                          value: 'cancel',
+                          child: Text('Cancel'),
+                        ),
+                    ],
+                    onSelected: (value) {
+                      switch (value) {
+                        case 'new':
+                          _makeAppointment(context);
+                          break;
+                        case 'reschedule':
+                          _rescheduleAppointment(context, appointmentId);
+                          break;
+                        case 'cancel':
+                          _cancelAppointment(context, appointmentId);
+                          break;
+                      }
+                    },
                   ),
                 ],
               ),
               const SizedBox(height: 8),
-              Row(
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'With: $counselorName',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w500,
-                            color: Colors.teal.shade700,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Date: $formattedDate',
-                          style: TextStyle(
-                            color: Colors.grey.shade700,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Type: $sessionType',
-                          style: TextStyle(
-                            color: Colors.grey.shade700,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Status: ${status.substring(0, 1).toUpperCase()}${status.substring(1)}',
-                          style: TextStyle(
-                            color: _getStatusColor(status),
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
+                  Text(
+                    'With: $counselorName',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w500,
+                      color: Colors.teal.shade700,
                     ),
                   ),
-                  ElevatedButton(
-                    onPressed: () => _makeAppointment(context),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.teal.shade50,
-                      foregroundColor: Colors.teal.shade700,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Date: $formattedDate',
+                    style: TextStyle(
+                      color: Colors.grey.shade700,
                     ),
-                    child: const Text('New Appointment'),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Type: $sessionType',
+                    style: TextStyle(
+                      color: Colors.grey.shade700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Status: ${status.substring(0, 1).toUpperCase()}${status.substring(1)}',
+                    style: TextStyle(
+                      color: _getStatusColor(status),
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ],
               ),
@@ -471,44 +601,42 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
                     children: [
                       const Icon(Icons.event, size: 20, color: Colors.grey),
                       const SizedBox(width: 6),
-                      Text(
-                        'Appointment Information',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.grey.shade800,
+                      Expanded(
+                        child: Text(
+                          'Appointment Information',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.grey.shade800,
+                          ),
                         ),
+                      ),
+                      // Add the kebab menu with only new appointment option
+                      PopupMenuButton<String>(
+                        icon: const Icon(Icons.more_vert, size: 20),
+                        padding: EdgeInsets.zero,
+                        tooltip: 'Appointment options',
+                        itemBuilder: (context) => <PopupMenuEntry<String>>[
+                          const PopupMenuItem<String>(
+                            value: 'new',
+                            child: Text('New Appointment'),
+                          ),
+                        ],
+                        onSelected: (value) {
+                          if (value == 'new') {
+                            _makeAppointment(context);
+                          }
+                        },
                       ),
                     ],
                   ),
                   const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          currentAssignmentText,
-                          style: TextStyle(
-                            fontStyle: FontStyle.italic,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                      ),
-                      ElevatedButton(
-                        onPressed: () => _makeAppointment(context),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.teal.shade50,
-                          foregroundColor: Colors.teal.shade700,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 8,
-                          ),
-                        ),
-                        child: const Text('Make Appointment'),
-                      ),
-                    ],
+                  Text(
+                    currentAssignmentText,
+                    style: TextStyle(
+                      fontStyle: FontStyle.italic,
+                      color: Colors.grey.shade600,
+                    ),
                   ),
                 ],
               );
