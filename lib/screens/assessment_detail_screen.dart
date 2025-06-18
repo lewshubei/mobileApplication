@@ -3,6 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:collection/collection.dart';
 import 'dart:math' as Math;
+import 'package:sentimo/components/counselor/create_appointment_component.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class AssessmentDetailScreen extends StatefulWidget {
   final String assessmentId;
@@ -94,6 +96,82 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Error assigning counselor: $e')));
+    }
+  }
+  
+  void _makeAppointment(BuildContext context) async {
+    try {
+      // Get student information
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.studentId)
+          .get();
+          
+      if (!userDoc.exists) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Student information not found')),
+        );
+        return;
+      }
+      
+      final userData = userDoc.data() as Map<String, dynamic>;
+      final String studentName = userData['name'] ?? 
+                                userData['displayName'] ?? 
+                                'Student ${widget.studentId.substring(0, 4)}';
+      
+      // Get the current user (counselor)
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('You must be logged in to create appointments')),
+        );
+        return;
+      }
+      
+      // Navigate to the Create Appointment screen
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => CreateAppointmentComponent(
+            onCancel: () => Navigator.of(context).pop(),
+            onSubmit: (appointmentData) => _createAppointment(appointmentData, user.uid),
+            preSelectedStudentId: widget.studentId,
+          ),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error creating appointment: $e')),
+      );
+    }
+  }
+  
+  Future<void> _createAppointment(Map<String, dynamic> appointmentData, String counselorId) async {
+    try {
+      // Add counselor ID and assignment info to the appointment data
+      appointmentData['counselorId'] = counselorId;
+      appointmentData['assignedBy'] = counselorId;
+      appointmentData['assignmentDate'] = FieldValue.serverTimestamp();
+      appointmentData['studentId'] = widget.studentId;
+      
+      // Save to Firestore
+      await FirebaseFirestore.instance.collection('appointments').add(appointmentData);
+      
+      // Return to previous screen
+      if (mounted) {
+        Navigator.of(context).pop();
+        
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Appointment created successfully')),
+        );
+      }
+    } catch (e) {
+      // Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to create appointment: ${e.toString()}')),
+        );
+      }
     }
   }
 
@@ -331,9 +409,7 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
                   ),
                 ),
                 ElevatedButton(
-                  onPressed: () {
-                    _showCounselorSelectionDialog(context, counselors);
-                  },
+                  onPressed: () => _makeAppointment(context),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.teal.shade50,
                     foregroundColor: Colors.teal.shade700,
@@ -345,7 +421,7 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
                       vertical: 8,
                     ),
                   ),
-                  child: const Text('Assign'),
+                  child: const Text('Make Appointment'),
                 ),
               ],
             ),

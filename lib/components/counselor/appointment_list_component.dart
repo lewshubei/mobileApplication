@@ -208,7 +208,7 @@ class _AppointmentListComponentState extends State<AppointmentListComponent> wit
           _loadAppointments(); // Reload appointments with search query
         },
         decoration: InputDecoration(
-          hintText: 'Search by client name',
+          hintText: 'Search by student name',
           prefixIcon: const Icon(Icons.search),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
@@ -476,8 +476,26 @@ class _AppointmentListComponentState extends State<AppointmentListComponent> wit
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  // Removed Edit and Cancel buttons for Upcoming appointments
-                  if (appointment['status'] == 'Past') ...[
+                  if (appointment['status'] == 'Upcoming') ...[
+                    _buildActionButton(
+                      icon: Icons.edit,
+                      label: 'Edit',
+                      onTap: () {
+                        if (widget.onAppointmentTap != null) {
+                          widget.onAppointmentTap!(appointment);
+                        }
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    _buildActionButton(
+                      icon: Icons.delete,
+                      label: 'Delete',
+                      isDestructive: true,
+                      onTap: () {
+                        _handleDeleteAppointment(appointment['id']);
+                      },
+                    ),
+                  ] else if (appointment['status'] == 'Past') ...[
                     _buildActionButton(
                       icon: Icons.note_add,
                       label: 'Add Notes',

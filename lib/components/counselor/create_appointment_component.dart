@@ -6,11 +6,13 @@ import 'package:sentimo/components/counselor/student_service.dart';
 class CreateAppointmentComponent extends StatefulWidget {
   final VoidCallback? onCancel;
   final Function(Map<String, dynamic>)? onSubmit;
+  final String? preSelectedStudentId; // Added parameter for pre-selected student
 
   const CreateAppointmentComponent({
     super.key,
     this.onCancel,
     this.onSubmit,
+    this.preSelectedStudentId, // Optional parameter for pre-selecting a student
   });
 
   @override
@@ -50,6 +52,11 @@ class _CreateAppointmentComponentState extends State<CreateAppointmentComponent>
       setState(() {
         _students = students;
         _isLoading = false;
+        
+        // If a pre-selected student ID was provided, set it
+        if (widget.preSelectedStudentId != null) {
+          _selectedClientId = widget.preSelectedStudentId;
+        }
       });
     } catch (e) {
       setState(() {
@@ -132,12 +139,6 @@ class _CreateAppointmentComponentState extends State<CreateAppointmentComponent>
           icon: const Icon(Icons.close),
           onPressed: widget.onCancel,
         ),
-        actions: [
-          TextButton(
-            onPressed: _submitForm,
-            child: const Text('SAVE'),
-          ),
-        ],
       ),
       body: _isLoading 
         ? const Center(child: CircularProgressIndicator())
@@ -151,7 +152,7 @@ class _CreateAppointmentComponentState extends State<CreateAppointmentComponent>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildSectionTitle('Client'),
+                        _buildSectionTitle('Student'),
                         _buildClientDropdown(),
                         const SizedBox(height: 24),
                         
@@ -165,6 +166,9 @@ class _CreateAppointmentComponentState extends State<CreateAppointmentComponent>
                         
                         _buildSectionTitle('Notes (Optional)'),
                         _buildNotesField(),
+                        const SizedBox(height: 32),
+                        
+                        _buildActionButtons(),
                       ],
                     ),
                   ),
@@ -226,7 +230,7 @@ class _CreateAppointmentComponentState extends State<CreateAppointmentComponent>
           borderRadius: BorderRadius.circular(10),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        hintText: 'Select a client',
+        hintText: 'Select a student',
       ),
       value: _selectedClientId,
       isExpanded: true,
@@ -238,7 +242,7 @@ class _CreateAppointmentComponentState extends State<CreateAppointmentComponent>
       }).toList(),
       validator: (value) {
         if (value == null || value.isEmpty) {
-          return 'Please select a client';
+          return 'Please select a student';
         }
         return null;
       },
@@ -367,6 +371,41 @@ class _CreateAppointmentComponentState extends State<CreateAppointmentComponent>
         hintText: 'Add any notes about this appointment...',
         contentPadding: const EdgeInsets.all(16),
       ),
+    );
+  }
+
+  // Add the action buttons widget that matches the AppointmentFormComponent style
+  Widget _buildActionButtons() {
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton(
+            onPressed: widget.onCancel,
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text('CANCEL'),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: ElevatedButton(
+            onPressed: _submitForm,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).primaryColor,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text('SAVE'),
+          ),
+        ),
+      ],
     );
   }
 
