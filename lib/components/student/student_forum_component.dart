@@ -97,17 +97,124 @@ class _StudentForumComponentState extends State<StudentForumComponent> {
                                   });
 
                               Navigator.pop(context);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Post submitted and pending admin approval.',
-                                  ),
-                                ),
+                              showDialog(
+                                context: context,
+                                builder:
+                                    (context) => Dialog(
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(16.0),
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(
+                                              'Post Submitted',
+                                              style: TextStyle(
+                                                fontSize: 20,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.black,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 16),
+
+                                            Text(
+                                              'Your post has been submitted and is pending admin approval.',
+                                              style: TextStyle(
+                                                fontSize: 16,
+                                                color: Colors.grey.shade700,
+                                              ),
+                                              textAlign: TextAlign.center,
+                                            ),
+                                            const SizedBox(height: 24),
+
+                                            ElevatedButton(
+                                              onPressed:
+                                                  () => Navigator.pop(context),
+                                              style: ElevatedButton.styleFrom(
+                                                foregroundColor: Colors.white,
+                                                backgroundColor:
+                                                    Colors.green.shade600,
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                ),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      vertical: 12,
+                                                    ),
+                                              ),
+                                              child: const Text(
+                                                'OK',
+                                                style: TextStyle(fontSize: 16),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
                               );
                             } catch (e) {
                               Navigator.pop(context);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Failed to post: $e')),
+                              showDialog(
+                                context: context,
+                                builder:
+                                    (context) => Dialog(
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(16.0),
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            // Title
+                                            Text(
+                                              'Post Submission Failed',
+                                              style: TextStyle(
+                                                fontSize: 20,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.black,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 16),
+
+                                            Text(
+                                              'Failed to post: $e',
+                                              style: TextStyle(
+                                                fontSize: 16,
+                                                color: Colors.grey.shade700,
+                                              ),
+                                              textAlign: TextAlign.center,
+                                            ),
+                                            const SizedBox(height: 24),
+
+                                            ElevatedButton(
+                                              onPressed:
+                                                  () => Navigator.pop(context),
+                                              style: ElevatedButton.styleFrom(
+                                                foregroundColor: Colors.white,
+                                                backgroundColor:
+                                                    Colors.red.shade600,
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                ),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      vertical: 12,
+                                                    ),
+                                              ),
+                                              child: const Text(
+                                                'OK',
+                                                style: TextStyle(fontSize: 16),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
                               );
                             }
                           }
