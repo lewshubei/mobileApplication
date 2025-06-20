@@ -181,34 +181,6 @@ class AdminDashboardComponent extends StatelessWidget {
                                         ),
                                       ],
                                     ),
-                                    const SizedBox(height: 20),
-                                    Container(
-                                      padding: const EdgeInsets.all(16),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withOpacity(0.7),
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          Icon(
-                                            Icons.info_outline,
-                                            color: Colors.purple.shade700,
-                                            size: 20,
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Expanded(
-                                            child: Text(
-                                              'Manage student-counselor assignments and monitor system activity.',
-                                              style: Theme.of(
-                                                context,
-                                              ).textTheme.bodyMedium?.copyWith(
-                                                color: Colors.purple.shade900,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
                                   ],
                                 ),
                               ),
@@ -298,18 +270,37 @@ class AdminDashboardComponent extends StatelessWidget {
                       const SizedBox(height: 24),
 
                       // Assignment Overview
-                      Text(
-                        'Student Assignment Status',
-                        style: Theme.of(context).textTheme.titleLarge,
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.assignment_outlined,
+                              color: Colors.blue.shade700,
+                              size: 24,
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              'Student Assignments Status',
+                              style: Theme.of(
+                                context,
+                              ).textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue.shade900,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      const SizedBox(height: 16),
+
+                      const SizedBox(height: 24),
 
                       Row(
                         children: [
                           Expanded(
                             child: _buildStatCard(
                               context,
-                              'Assigned Students',
+                              'Assigned',
                               assignedStudents.toString(),
                               Icons.link,
                               Colors.teal,
@@ -319,7 +310,7 @@ class AdminDashboardComponent extends StatelessWidget {
                           Expanded(
                             child: _buildStatCard(
                               context,
-                              'Unassigned Students',
+                              'Unassigned',
                               unassignedStudents.toString(),
                               Icons.link_off,
                               Colors.red,
@@ -331,10 +322,26 @@ class AdminDashboardComponent extends StatelessWidget {
                       const SizedBox(height: 24),
 
                       // High Risk Assessments List
-                      Text(
-                        'Assessments',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.list_alt_outlined,
+                              color: Colors.blue.shade700,
+                              size: 24,
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              'Assessments List',
+                              style: Theme.of(
+                                context,
+                              ).textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue.shade900,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -422,65 +429,7 @@ class AdminDashboardComponent extends StatelessWidget {
                       else
                         const Text('No assessments found.'),
 
-                      const SizedBox(height: 24),
-
                       // Quick Actions
-                      Text(
-                        'Quick Actions',
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                      const SizedBox(height: 16),
-
-                      Card(
-                        elevation: 2,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(16),
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [Colors.white, Colors.grey.shade50],
-                            ),
-                          ),
-                          child: Column(
-                            children: [
-                              _buildQuickActionTile(
-                                context,
-                                icon: Icons.assignment_ind,
-                                iconColor: Colors.blue,
-                                title: 'Manage Student Assignments',
-                                subtitle: 'Assign students to counselors',
-                                onTap: () {
-                                  DefaultTabController.of(context).animateTo(1);
-                                },
-                              ),
-                              Divider(height: 1, color: Colors.grey.shade200),
-                              _buildQuickActionTile(
-                                context,
-                                icon: Icons.people_outline,
-                                iconColor: Colors.green,
-                                title: 'View All Users',
-                                subtitle: 'Manage user accounts and roles',
-                                onTap: () {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'User management coming soon',
-                                      ),
-                                      behavior: SnackBarBehavior.floating,
-                                    ),
-                                  );
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 16),
                     ],
                   ),
                 );
