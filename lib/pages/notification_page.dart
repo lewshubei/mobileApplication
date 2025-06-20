@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:sentimo/services/notification_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
+import 'package:sentimo/services/notification_service.dart';
 
 class NotificationPage extends StatefulWidget {
   const NotificationPage({Key? key}) : super(key: key);
@@ -10,20 +12,70 @@ class NotificationPage extends StatefulWidget {
 }
 
 class _NotificationPageState extends State<NotificationPage> {
-  List<AppNotification> _notifications = [];
   bool _loading = true;
+  List<_UnifiedNotification> _allNotifications = [];
 
   @override
   void initState() {
     super.initState();
-    _loadNotifications();
-    NotificationService().markAllAsSeen();
+    _loadAllNotifications();
   }
 
-  Future<void> _loadNotifications() async {
-    final notifs = await NotificationService().getNotifications();
+  Future<void> _loadAllNotifications() async {
+    setState(() => _loading = true);
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      setState(() {
+        _allNotifications = [];
+        _loading = false;
+      });
+      return;
+    }
+    // 1. Load local motivational quotes
+    final localQuotes = await NotificationService().getNotifications();
+
+    // Filter: Only one quote per day (keep the latest for each day)
+    final Map<String, _UnifiedNotification> quoteByDay = {};
+    for (final q in localQuotes) {
+      final dayKey = DateFormat('yyyy-MM-dd').format(q.dateTime);
+      final notif = _UnifiedNotification(
+        message: q.quote,
+        dateTime: q.dateTime,
+        type: _NotifType.quote,
+      );
+      // If there's already a quote for this day, keep the latest one
+      if (!quoteByDay.containsKey(dayKey) || q.dateTime.isAfter(quoteByDay[dayKey]!.dateTime)) {
+        quoteByDay[dayKey] = notif;
+      }
+    }
+    final localUnified = quoteByDay.values.toList();
+
+    // 2. Load Firestore appointments
+    final firestoreSnapshot = await FirebaseFirestore.instance
+        .collection('appointments')
+        .where('studentId', isEqualTo: user.uid)
+        .orderBy('datetime', descending: true)
+        .get();
+    final firestoreUnified = firestoreSnapshot.docs.map((doc) {
+      final data = doc.data() as Map<String, dynamic>;
+      final counselorName = data['counselorName'] ?? 'Counselor';
+      final dateTime = data['datetime'] != null
+          ? (data['datetime'] as Timestamp).toDate()
+          : DateTime.now();
+      final message = "You have an appointment with $counselorName on "
+          "${DateFormat('MMM dd, yyyy – hh:mm a').format(dateTime)}.";
+      return _UnifiedNotification(
+        message: message,
+        dateTime: dateTime,
+        type: _NotifType.appointment,
+      );
+    }).toList();
+
+    // 3. Merge and sort
+    final allNotifs = [...localUnified, ...firestoreUnified];
+    allNotifs.sort((a, b) => b.dateTime.compareTo(a.dateTime));
     setState(() {
-      _notifications = notifs;
+      _allNotifications = allNotifs;
       _loading = false;
     });
   }
@@ -39,85 +91,82 @@ class _NotificationPageState extends State<NotificationPage> {
         elevation: 0.5,
       ),
       backgroundColor: const Color.fromARGB(255, 241, 245, 229),
-      body:
-          _loading
-              ? const Center(child: CircularProgressIndicator())
-              : _notifications.isEmpty
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _allNotifications.isEmpty
               ? _buildEmptyState(theme)
               : ListView.separated(
-                padding: const EdgeInsets.all(16),
-                itemCount: _notifications.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
-                itemBuilder: (context, index) {
-                  final notif = _notifications[index];
-                  return Card(
-                    elevation: 2,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(20.0),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: const Color.fromARGB(255, 211, 231, 190),
-                              borderRadius: BorderRadius.circular(12),
+                  padding: const EdgeInsets.all(16),
+                  itemCount: _allNotifications.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  itemBuilder: (context, index) {
+                    final notif = _allNotifications[index];
+                    return Card(
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(20.0),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: notif.type == _NotifType.quote
+                                    ? const Color.fromARGB(255, 211, 231, 190)
+                                    : const Color.fromARGB(255, 255, 243, 207),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Icon(
+                                notif.type == _NotifType.quote
+                                    ? Icons.format_quote
+                                    : Icons.event,
+                                color: notif.type == _NotifType.quote
+                                    ? const Color.fromARGB(255, 31, 153, 27)
+                                    : Colors.orange.shade700,
+                                size: 28,
+                              ),
                             ),
-                            child: const Icon(
-                              Icons.format_quote,
-                              color: Color.fromARGB(255, 31, 153, 27),
-                              size: 28,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  notif.quote,
-                                  style: theme.textTheme.bodyLarge?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                    color: const Color.fromARGB(
-                                      255,
-                                      36,
-                                      99,
-                                      12,
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    notif.message,
+                                    style: theme.textTheme.bodyLarge?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                      color: const Color.fromARGB(255, 36, 99, 12),
                                     ),
                                   ),
-                                ),
-                                const SizedBox(height: 10),
-                                Row(
-                                  children: [
-                                    Icon(
-                                      Icons.access_time,
-                                      size: 16,
-                                      color: Colors.grey.shade500,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      DateFormat(
-                                        'MMM dd, yyyy – hh:mm a',
-                                      ).format(notif.dateTime),
-                                      style: theme.textTheme.bodySmall
-                                          ?.copyWith(
-                                            color: Colors.grey.shade600,
-                                          ),
-                                    ),
-                                  ],
-                                ),
-                              ],
+                                  const SizedBox(height: 10),
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.access_time,
+                                        size: 16,
+                                        color: Colors.grey.shade500,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        DateFormat('MMM dd, yyyy – hh:mm a').format(notif.dateTime),
+                                        style: theme.textTheme.bodySmall?.copyWith(
+                                          color: Colors.grey.shade600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                  );
-                },
-              ),
+                    );
+                  },
+                ),
     );
   }
 
@@ -144,7 +193,7 @@ class _NotificationPageState extends State<NotificationPage> {
             ),
             const SizedBox(height: 12),
             Text(
-              'You will receive a motivational quote here every morning at 8 AM. Stay inspired!',
+              'You will receive motivational quotes and appointment notifications here.',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: Colors.purple.shade700,
               ),
@@ -155,4 +204,13 @@ class _NotificationPageState extends State<NotificationPage> {
       ),
     );
   }
+}
+
+enum _NotifType { quote, appointment }
+
+class _UnifiedNotification {
+  final String message;
+  final DateTime dateTime;
+  final _NotifType type;
+  _UnifiedNotification({required this.message, required this.dateTime, required this.type});
 }

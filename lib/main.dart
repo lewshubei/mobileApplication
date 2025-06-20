@@ -6,6 +6,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:sentimo/screens/login_screen.dart';
 import 'package:sentimo/screens/home_screen.dart';
 import 'package:sentimo/providers/user_provider.dart';
+import 'package:sentimo/services/notification_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:timezone/timezone.dart' as tz;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -93,4 +98,46 @@ class AuthWrapper extends StatelessWidget {
       },
     );
   }
+}
+
+Future<void> sendAppointmentNotificationToStudent({
+  required String studentId,
+  required String counselorName,
+  required DateTime appointmentDateTime,
+}) async {
+  final message = "You have an appointment with Counselor $counselorName on "
+      "${DateFormat('MMM dd, yyyy – hh:mm a').format(appointmentDateTime)}.";
+
+  await FirebaseFirestore.instance.collection('notifications').add({
+    'userId': studentId,
+    'message': message,
+    'timestamp': FieldValue.serverTimestamp(),
+    'seen': false,
+  });
+}
+
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+
+Future<void> scheduleAppointmentReminder(DateTime appointmentDateTime, String counselorName) async {
+  final reminderTime = appointmentDateTime.subtract(const Duration(days: 1));
+  if (reminderTime.isBefore(DateTime.now())) return; // Don't schedule past reminders
+
+  await flutterLocalNotificationsPlugin.zonedSchedule(
+    0,
+    'Appointment Reminder',
+    'You have an appointment with $counselorName tomorrow at ${DateFormat('hh:mm a').format(appointmentDateTime)}.',
+    tz.TZDateTime.from(reminderTime, tz.local),
+    const NotificationDetails(
+      android: AndroidNotificationDetails(
+        'appointment_reminder_channel',
+        'Appointment Reminders',
+        channelDescription: 'Reminders for upcoming appointments',
+        importance: Importance.max,
+        priority: Priority.high,
+      ),
+    ),
+    androidAllowWhileIdle: true,
+    uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+    matchDateTimeComponents: DateTimeComponents.dateAndTime,
+  );
 }
