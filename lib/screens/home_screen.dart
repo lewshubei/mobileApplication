@@ -16,6 +16,8 @@ import 'package:sentimo/screens/login_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/mood_entry.dart';
 import 'package:sentimo/components/student/student_forum_component.dart';
+import 'package:sentimo/services/notification_service.dart';
+import 'package:sentimo/pages/notification_page.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -36,6 +38,9 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _showPieChart = false;
   DateTime? _selectedStartDate;
   DateTime? _selectedEndDate;
+
+  String? _latestQuote;
+  bool _isFetchingQuote = false;
 
   // Mental Health Questions
   final List<Map<String, dynamic>> questions = [
@@ -80,6 +85,8 @@ class _HomeScreenState extends State<HomeScreen> {
       'options': ['Daily', 'Few times a week', 'Rarely', 'Never'],
     },
   ];
+
+  bool _hasUnseenNotifications = false;
 
   // Add these methods for Firebase operations
   Future<void> _loadMoodDataFromFirebase() async {
@@ -506,10 +513,29 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    NotificationService().init();
+    NotificationService().scheduleDailyQuoteNotification();
+    _checkUnseenNotifications();
     // Add a small delay to ensure Firebase Auth is ready
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadMoodDataFromFirebase();
     });
+  }
+
+  Future<void> _checkUnseenNotifications() async {
+    final hasUnseen = await NotificationService().hasUnseenNotifications();
+    if (mounted) {
+      setState(() {
+        _hasUnseenNotifications = hasUnseen;
+      });
+    }
+  }
+
+  void _openNotificationPage() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (context) => const NotificationPage()),
+    );
+    _checkUnseenNotifications();
   }
 
   @override
@@ -736,6 +762,33 @@ class _HomeScreenState extends State<HomeScreen> {
     return '${date.year}-${date.month}-${date.day}';
   }
 
+  Future<void> _showQuoteDialog() async {
+    setState(() {
+      _isFetchingQuote = true;
+    });
+    final quote = await NotificationService().fetchRandomQuote();
+    setState(() {
+      _latestQuote = quote;
+      _isFetchingQuote = false;
+    });
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Motivational Quote'),
+        content: _isFetchingQuote
+            ? const SizedBox(height: 60, child: Center(child: CircularProgressIndicator()))
+            : Text(_latestQuote ?? 'No quote available.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -757,7 +810,30 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.black87,
         actions: [
-          // Add user profile icon in the app bar
+          // Notification bell icon with badge
+          Stack(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.notifications),
+                tooltip: 'Notifications',
+                onPressed: _openNotificationPage,
+              ),
+              if (_hasUnseenNotifications)
+                Positioned(
+                  right: 12,
+                  top: 12,
+                  child: Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          // User profile icon in the app bar
           IconButton(
             icon: const Icon(Icons.account_circle),
             onPressed: () => _showProfileOptions(context),
