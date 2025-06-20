@@ -94,6 +94,8 @@ class _StudentForumComponentState extends State<StudentForumComponent> {
                                     'rejected': false,
                                     'authorId': user.uid,
                                     'role': role,
+                                    'likes': [],
+                                    'comments': [],
                                   });
 
                               Navigator.pop(context);
@@ -357,6 +359,149 @@ class _StudentForumComponentState extends State<StudentForumComponent> {
     );
   }
 
+  Future<void> _toggleLike(String postId, List likes) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final postRef = FirebaseFirestore.instance
+        .collection('forum_posts')
+        .doc(postId);
+    if (likes.contains(user.uid)) {
+      await postRef.update({
+        'likes': FieldValue.arrayRemove([user.uid]),
+      });
+    } else {
+      await postRef.update({
+        'likes': FieldValue.arrayUnion([user.uid]),
+      });
+    }
+  }
+
+  void _showComments(BuildContext context, String postId, List comments) {
+    final TextEditingController commentController = TextEditingController();
+    final user = FirebaseAuth.instance.currentUser;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+            left: 16,
+            right: 16,
+            top: 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.comment, color: Colors.green),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Comments',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+              const Divider(),
+              if (comments.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: Text('No comments yet.'),
+                )
+              else
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: comments.length,
+                    separatorBuilder: (_, __) => const Divider(),
+                    itemBuilder: (context, idx) {
+                      final c = comments[idx];
+                      return ListTile(
+                        leading: const Icon(Icons.person, color: Colors.green),
+                        title: Text(c['comment'] ?? ''),
+                        subtitle: Text(
+                          c['userName'] ?? 'Unknown User',
+                        ), // Show user name
+                        trailing: Text(
+                          c['timestamp'] != null
+                              ? DateTime.fromMillisecondsSinceEpoch(
+                                c['timestamp'].seconds * 1000,
+                              ).toString().substring(0, 16)
+                              : '',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              Padding(
+                padding: const EdgeInsets.only(top: 12, bottom: 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: commentController,
+                        decoration: const InputDecoration(
+                          hintText: 'Add a comment...',
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.send, color: Colors.green),
+                      onPressed: () async {
+                        final text = commentController.text.trim();
+                        if (text.isEmpty || user == null) return;
+
+                        // Fetch user name
+                        final userDoc =
+                            await FirebaseFirestore.instance
+                                .collection('users')
+                                .doc(user.uid)
+                                .get();
+                        final userName =
+                            userDoc.data()?['name'] ?? 'Unknown User';
+
+                        final postRef = FirebaseFirestore.instance
+                            .collection('forum_posts')
+                            .doc(postId);
+                        await postRef.update({
+                          'comments': FieldValue.arrayUnion([
+                            {
+                              'userId': user.uid,
+                              'userName': userName, // Store user name
+                              'comment': text,
+                              'timestamp': Timestamp.now(),
+                            },
+                          ]),
+                        });
+                        commentController.clear();
+                        Navigator.pop(context);
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -375,53 +520,68 @@ class _StudentForumComponentState extends State<StudentForumComponent> {
 
             // Create Post Card
             Card(
+              color: Colors.green.shade50,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
               ),
-              elevation: 4,
+              elevation: 6,
               child: Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.all(20.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
                         Icon(
-                          Icons.forum,
-                          color: Colors.green.shade600,
-                          size: 28,
+                          Icons.campaign,
+                          color: Colors.green.shade700,
+                          size: 32,
                         ),
                         const SizedBox(width: 12),
-                        Text(
-                          'Got something to share?',
-                          style: Theme.of(
-                            context,
-                          ).textTheme.titleLarge?.copyWith(color: Colors.black),
+                        Expanded(
+                          child: Text(
+                            'Got something to share?',
+                            style: Theme.of(
+                              context,
+                            ).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 22,
+                              color: Colors.green.shade900,
+                            ),
+                          ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 14),
                     const Text(
-                      'Engage with the community by posting your thoughts, experiences, or concerns. All posts will be reviewed by admins before approval.',
-                      style: TextStyle(fontSize: 16, color: Colors.black),
+                      'Share your thoughts, experiences, or questions with the community. All posts are reviewed by admins.',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.black87,
+                        height: 1.4,
+                      ),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 22),
                     SizedBox(
                       width: double.infinity,
-                      child: ElevatedButton(
+                      child: ElevatedButton.icon(
                         onPressed: _showCreatePostDialog,
+                        icon: const Icon(Icons.edit, size: 20),
+                        label: const Text(
+                          'Create a New Post',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.green.shade600,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(10),
                           ),
-                          elevation: 5,
-                        ),
-                        child: const Text(
-                          'Create a New Post',
-                          style: TextStyle(fontSize: 16),
+                          elevation: 3,
                         ),
                       ),
                     ),
@@ -497,6 +657,8 @@ class _StudentForumComponentState extends State<StudentForumComponent> {
                                 role == 'admin'
                                     ? (users[authorId] ?? 'Admin')
                                     : 'anonymous',
+                            'likes': data['likes'] ?? [],
+                            'comments': data['comments'] ?? [],
                           };
                         }).toList();
 
@@ -507,26 +669,127 @@ class _StudentForumComponentState extends State<StudentForumComponent> {
                       itemBuilder: (context, index) {
                         final post = postList[index];
                         return Card(
-                          margin: const EdgeInsets.all(8),
-                          child: ListTile(
-                            onTap: () => _showPostDetailsDialog(post),
-                            title: Text(
-                              post['title'],
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            subtitle: Column(
+                          margin: const EdgeInsets.symmetric(
+                            vertical: 10,
+                            horizontal: 4,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 3,
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(post['content']),
-                                const SizedBox(height: 6),
+                                // Username row
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.account_circle,
+                                      size: 32,
+                                      color: Colors.grey,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      post['authorName'] ?? 'Unknown User',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    Text(
+                                      _formatTimestamp(post['createdAt']),
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                // Post content
                                 Text(
-                                  'Posted by ${post['authorName']} on ${_formatTimestamp(post['createdAt'])}',
+                                  post['content'],
                                   style: const TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey,
+                                    fontSize: 15,
+                                    height: 1.5,
                                   ),
+                                ),
+                                const SizedBox(height: 16),
+                                // Comments & Likes row
+                                Row(
+                                  children: [
+                                    GestureDetector(
+                                      onTap:
+                                          () => _showComments(
+                                            context,
+                                            post['id'],
+                                            post['comments'] ?? [],
+                                          ),
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            Icons.comment,
+                                            color: Colors.black.withOpacity(
+                                              0.7,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            '${(post['comments'] ?? []).length} comments',
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 24),
+                                    GestureDetector(
+                                      onTap:
+                                          () => _toggleLike(
+                                            post['id'],
+                                            post['likes'] ?? [],
+                                          ),
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            (post['likes'] ?? []).contains(
+                                                  FirebaseAuth
+                                                      .instance
+                                                      .currentUser
+                                                      ?.uid,
+                                                )
+                                                ? Icons.favorite
+                                                : Icons.favorite_border,
+                                            color: Colors.red,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Builder(
+                                            builder: (_) {
+                                              final likes = post['likes'] ?? [];
+                                              final userLiked = likes.contains(
+                                                FirebaseAuth
+                                                    .instance
+                                                    .currentUser
+                                                    ?.uid,
+                                              );
+                                              final count = likes.length;
+                                              if (userLiked && count > 1) {
+                                                return Text(
+                                                  'You & ${count - 1} others',
+                                                );
+                                              } else if (userLiked &&
+                                                  count == 1) {
+                                                return const Text('You');
+                                              } else {
+                                                return Text('$count likes');
+                                              }
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
