@@ -62,21 +62,27 @@ class _NotificationPageState extends State<NotificationPage> {
       final dateTime = data['datetime'] != null
           ? (data['datetime'] as Timestamp).toDate()
           : DateTime.now();
+      final sessionType = data['sessionType'] ?? 'In-person';
       final status = data['status'] ?? 'upcoming';
+      final notes = data['notes'] ?? '';
       
       String message;
       switch (status) {
         case 'cancelled':
-          message = "Your appointment with $counselorName on "
+          message = "Your $sessionType appointment with $counselorName on "
               "${DateFormat('MMM dd, yyyy – hh:mm a').format(dateTime)} has been cancelled.";
           break;
         case 'completed':
-          message = "Your appointment with $counselorName on "
+          message = "Your $sessionType appointment with $counselorName on "
               "${DateFormat('MMM dd, yyyy – hh:mm a').format(dateTime)} has been completed.";
           break;
         default:
-          message = "You have an appointment with $counselorName on "
+          message = "You have a $sessionType appointment with $counselorName on "
               "${DateFormat('MMM dd, yyyy – hh:mm a').format(dateTime)}.";
+          // Add meeting link info for online appointments
+          if (sessionType.toLowerCase() == 'online' && notes.isNotEmpty) {
+            message += " Meeting link: $notes";
+          }
       }
       
       return _UnifiedNotification(
