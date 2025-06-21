@@ -62,12 +62,28 @@ class _NotificationPageState extends State<NotificationPage> {
       final dateTime = data['datetime'] != null
           ? (data['datetime'] as Timestamp).toDate()
           : DateTime.now();
-      final message = "You have an appointment with $counselorName on "
-          "${DateFormat('MMM dd, yyyy – hh:mm a').format(dateTime)}.";
+      final status = data['status'] ?? 'upcoming';
+      
+      String message;
+      switch (status) {
+        case 'cancelled':
+          message = "Your appointment with $counselorName on "
+              "${DateFormat('MMM dd, yyyy – hh:mm a').format(dateTime)} has been cancelled.";
+          break;
+        case 'completed':
+          message = "Your appointment with $counselorName on "
+              "${DateFormat('MMM dd, yyyy – hh:mm a').format(dateTime)} has been completed.";
+          break;
+        default:
+          message = "You have an appointment with $counselorName on "
+              "${DateFormat('MMM dd, yyyy – hh:mm a').format(dateTime)}.";
+      }
+      
       return _UnifiedNotification(
         message: message,
         dateTime: dateTime,
         type: _NotifType.appointment,
+        status: status,
       );
     }).toList();
 
@@ -122,10 +138,14 @@ class _NotificationPageState extends State<NotificationPage> {
                               child: Icon(
                                 notif.type == _NotifType.quote
                                     ? Icons.format_quote
-                                    : Icons.event,
+                                    : (notif.status == 'cancelled' 
+                                        ? Icons.cancel 
+                                        : Icons.event),
                                 color: notif.type == _NotifType.quote
                                     ? const Color.fromARGB(255, 31, 153, 27)
-                                    : Colors.orange.shade700,
+                                    : (notif.status == 'cancelled' 
+                                        ? Colors.red 
+                                        : Colors.orange.shade700),
                                 size: 28,
                               ),
                             ),
@@ -212,5 +232,45 @@ class _UnifiedNotification {
   final String message;
   final DateTime dateTime;
   final _NotifType type;
-  _UnifiedNotification({required this.message, required this.dateTime, required this.type});
+  final String? status;
+  _UnifiedNotification({
+    required this.message, 
+    required this.dateTime, 
+    required this.type,
+    this.status,
+  });
+}
+
+Future<void> sendAppointmentNotificationToStudent({
+  required String studentId,
+  required String counselorName,
+  required DateTime appointmentDateTime,
+}) async {
+  final message = "You have an appointment with Counselor $counselorName on "
+      "${DateFormat('MMM dd, yyyy – hh:mm a').format(appointmentDateTime)}.";
+
+  await FirebaseFirestore.instance.collection('notifications').add({
+    'userId': studentId,
+    'message': message,
+    'timestamp': FieldValue.serverTimestamp(),
+    'seen': false,
+    'type': 'appointment', // Optional: to distinguish notification type
+  });
+}
+
+Future<void> sendAppointmentCancellationNotification({
+  required String studentId,
+  required String counselorName,
+  required DateTime appointmentDateTime,
+}) async {
+  final message = "Your appointment with Counselor $counselorName on "
+      "${DateFormat('MMM dd, yyyy – hh:mm a').format(appointmentDateTime)} has been cancelled.";
+
+  await FirebaseFirestore.instance.collection('notifications').add({
+    'userId': studentId,
+    'message': message,
+    'timestamp': FieldValue.serverTimestamp(),
+    'seen': false,
+    'type': 'cancellation', // Optional: to distinguish notification type
+  });
 }
