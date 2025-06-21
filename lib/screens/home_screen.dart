@@ -810,28 +810,11 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.black87,
         actions: [
-          // Notification bell icon with badge
-          Stack(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.notifications),
-                tooltip: 'Notifications',
-                onPressed: _openNotificationPage,
-              ),
-              if (_hasUnseenNotifications)
-                Positioned(
-                  right: 12,
-                  top: 12,
-                  child: Container(
-                    width: 10,
-                    height: 10,
-                    decoration: BoxDecoration(
-                      color: Colors.red,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ),
-            ],
+          // Notification bell icon
+          IconButton(
+            icon: const Icon(Icons.notifications),
+            tooltip: 'Notifications',
+            onPressed: _openNotificationPage,
           ),
           // User profile icon in the app bar
           IconButton(
