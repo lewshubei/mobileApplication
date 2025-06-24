@@ -48,13 +48,15 @@ class _CreateAppointmentComponentState extends State<CreateAppointmentComponent>
     });
     
     try {
-      final students = await _studentService.getStudents();
+      // Using the new method to only get assigned students
+      final students = await _studentService.getAssignedStudents();
       setState(() {
         _students = students;
         _isLoading = false;
         
-        // If a pre-selected student ID was provided, set it
-        if (widget.preSelectedStudentId != null) {
+        // If a pre-selected student ID was provided, set it only if it's in the assigned students list
+        if (widget.preSelectedStudentId != null && 
+            students.any((student) => student['id'] == widget.preSelectedStudentId)) {
           _selectedClientId = widget.preSelectedStudentId;
         }
       });
@@ -218,7 +220,7 @@ class _CreateAppointmentComponentState extends State<CreateAppointmentComponent>
         child: Padding(
           padding: EdgeInsets.all(16.0),
           child: Center(
-            child: Text('No students available. Please add students first.'),
+            child: Text('No assigned students available. Please contact an admin to assign students.'),
           ),
         ),
       );
@@ -374,7 +376,6 @@ class _CreateAppointmentComponentState extends State<CreateAppointmentComponent>
     );
   }
 
-  // Add the action buttons widget that matches the AppointmentFormComponent style
   Widget _buildActionButtons() {
     return Row(
       children: [
