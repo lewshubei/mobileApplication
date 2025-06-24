@@ -114,33 +114,33 @@ class _NotificationPageState extends State<NotificationPage> {
       ),
       backgroundColor: const Color.fromARGB(255, 241, 245, 229),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+              ? const Center(child: CircularProgressIndicator())
           : _allNotifications.isEmpty
               ? _buildEmptyState(theme)
               : ListView.separated(
-                  padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(16),
                   itemCount: _allNotifications.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
-                  itemBuilder: (context, index) {
+                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                itemBuilder: (context, index) {
                     final notif = _allNotifications[index];
-                    return Card(
-                      elevation: 2,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(20.0),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
+                  return Card(
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(20.0),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
                                 color: notif.type == _NotifType.quote
                                     ? const Color.fromARGB(255, 211, 231, 190)
                                     : const Color.fromARGB(255, 255, 243, 207),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                               child: Icon(
                                 notif.type == _NotifType.quote
                                     ? Icons.format_quote
@@ -152,47 +152,47 @@ class _NotificationPageState extends State<NotificationPage> {
                                     : (notif.status == 'cancelled' 
                                         ? Colors.red 
                                         : Colors.orange.shade700),
-                                size: 28,
-                              ),
+                              size: 28,
                             ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
                                     notif.message,
-                                    style: theme.textTheme.bodyLarge?.copyWith(
-                                      fontWeight: FontWeight.w600,
+                                  style: theme.textTheme.bodyLarge?.copyWith(
+                                    fontWeight: FontWeight.w600,
                                       color: const Color.fromARGB(255, 36, 99, 12),
-                                    ),
                                   ),
-                                  const SizedBox(height: 10),
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        Icons.access_time,
-                                        size: 16,
-                                        color: Colors.grey.shade500,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
+                                ),
+                                const SizedBox(height: 10),
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.access_time,
+                                      size: 16,
+                                      color: Colors.grey.shade500,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
                                         DateFormat('MMM dd, yyyy – hh:mm a').format(notif.dateTime),
                                         style: theme.textTheme.bodySmall?.copyWith(
-                                          color: Colors.grey.shade600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
+                                            color: Colors.grey.shade600,
+                                          ),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                    );
-                  },
-                ),
+                    ),
+                  );
+                },
+              ),
     );
   }
 
