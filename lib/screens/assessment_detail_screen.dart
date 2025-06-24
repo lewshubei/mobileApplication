@@ -512,40 +512,16 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
                           ),
                         ),
                       ),
-                      // Add the kebab menu with context-specific options
-                      PopupMenuButton<String>(
-                        icon: const Icon(Icons.more_vert, size: 20),
-                        padding: EdgeInsets.zero,
-                        tooltip: 'Appointment options',
-                        itemBuilder: (context) => <PopupMenuEntry<String>>[
-                          const PopupMenuItem<String>(
-                            value: 'new',
-                            child: Text('New Appointment'),
-                          ),
-                          if (canReschedule)
-                            const PopupMenuItem<String>(
-                              value: 'reschedule',
-                              child: Text('Reschedule'),
-                            ),
-                          if (canReschedule)
-                            const PopupMenuItem<String>(
-                              value: 'cancel',
-                              child: Text('Cancel'),
-                            ),
-                        ],
-                        onSelected: (value) {
-                          switch (value) {
-                            case 'new':
-                              _makeAppointment(context);
-                              break;
-                            case 'reschedule':
-                              _rescheduleAppointment(context, appointmentId);
-                              break;
-                            case 'cancel':
-                              _cancelAppointment(context, appointmentId);
-                              break;
-                          }
-                        },
+                      // Replace kebab menu with New Appointment button
+                      ElevatedButton.icon(
+                        label: const Text("New Appointment"),
+                        onPressed: () => _makeAppointment(context),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.teal,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          textStyle: const TextStyle(fontSize: 13),
+                        ),
                       ),
                     ],
                   ),
@@ -632,22 +608,16 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
                           ),
                         ),
                       ),
-                      // Add the kebab menu with only new appointment option
-                      PopupMenuButton<String>(
-                        icon: const Icon(Icons.more_vert, size: 20),
-                        padding: EdgeInsets.zero,
-                        tooltip: 'Appointment options',
-                        itemBuilder: (context) => <PopupMenuEntry<String>>[
-                          const PopupMenuItem<String>(
-                            value: 'new',
-                            child: Text('New Appointment'),
-                          ),
-                        ],
-                        onSelected: (value) {
-                          if (value == 'new') {
-                            _makeAppointment(context);
-                          }
-                        },
+                      // Replace kebab menu with New Appointment button
+                      ElevatedButton.icon(
+                        label: const Text("New Appointment"),
+                        onPressed: () => _makeAppointment(context),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.teal,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          textStyle: const TextStyle(fontSize: 13),
+                        ),
                       ),
                     ],
                   ),
