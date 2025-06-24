@@ -88,20 +88,18 @@ class MentalHealthAssessmentComponent extends StatelessWidget {
           );
         }
 
-        // Now that we've verified the user is a counselor, fetch the assessments
+        // First, fetch the counselor's assigned students from the counselor_assignments collection
         return StreamBuilder<QuerySnapshot>(
-          stream:
-              FirebaseFirestore.instance
-                  .collection('user_assessments')
-                  .where('shared_with_counselor', isEqualTo: true)
-                  .orderBy('timestamp', descending: true)
-                  .snapshots(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
+          stream: FirebaseFirestore.instance
+              .collection('counselor_assignments')
+              .where('counselorId', isEqualTo: user.uid)
+              .snapshots(),
+          builder: (context, assignmentsSnapshot) {
+            if (assignmentsSnapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
             }
 
-            if (snapshot.hasError) {
+            if (assignmentsSnapshot.hasError) {
               return Center(
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
@@ -123,12 +121,7 @@ class MentalHealthAssessmentComponent extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        snapshot.error.toString(),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Please ensure your Firestore security rules allow counselors to read assessments.',
+                        assignmentsSnapshot.error.toString(),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -137,21 +130,26 @@ class MentalHealthAssessmentComponent extends StatelessWidget {
               );
             }
 
-            final assessments = snapshot.data?.docs ?? [];
-
-            if (assessments.isEmpty) {
+            final assignments = assignmentsSnapshot.data?.docs ?? [];
+            
+            // Extract the studentIds from assignments
+            final List<String> assignedStudentIds = assignments
+                .map((doc) => (doc.data() as Map<String, dynamic>)['studentId'] as String)
+                .toList();
+            
+            if (assignedStudentIds.isEmpty) {
               return Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      Icons.assessment,
+                      Icons.people,
                       size: 64,
                       color: Colors.grey.shade400,
                     ),
                     const SizedBox(height: 16),
                     const Text(
-                      'No Assessments Available',
+                      'No Assigned Students',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -159,7 +157,7 @@ class MentalHealthAssessmentComponent extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      'No mental health assessments have been shared with counselors yet.',
+                      'You don\'t have any students assigned to you yet.',
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -167,36 +165,112 @@ class MentalHealthAssessmentComponent extends StatelessWidget {
               );
             }
 
-            return ListView.builder(
-              padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 80.0),
-              itemCount: assessments.length,
-              itemBuilder: (context, index) {
-                try {
-                  final assessmentDoc = assessments[index];
-                  final assessment =
-                      assessmentDoc.data() as Map<String, dynamic>;
-                  final DateTime timestamp =
-                      (assessment['timestamp'] as Timestamp).toDate();
-                  final String userId = assessment['userId'] as String;
+            // Now fetch assessments where shared_with_counselor is true AND the userId is in the assignedStudentIds list
+            return StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('user_assessments')
+                  .where('shared_with_counselor', isEqualTo: true)
+                  .where('userId', whereIn: assignedStudentIds)
+                  .orderBy('timestamp', descending: true)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-                  // Format timestamp to a readable string
-                  final String formattedDate = DateFormat(
-                    'dd/MM/yyyy HH:mm',
-                  ).format(timestamp);
-
-                  return _buildAssessmentListItem(
-                    context,
-                    userId: userId,
-                    formattedDate: formattedDate,
-                    assessmentDoc: assessmentDoc,
-                  );
-                } catch (e) {
-                  return ListTile(
-                    title: Text('Error loading assessment'),
-                    subtitle: Text(e.toString()),
-                    tileColor: Colors.red.shade50,
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.error_outline,
+                            size: 48,
+                            color: Colors.red,
+                          ),
+                          const SizedBox(height: 16),
+                          const Text(
+                            'Error Loading Assessments',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            snapshot.error.toString(),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
                   );
                 }
+
+                final assessments = snapshot.data?.docs ?? [];
+
+                if (assessments.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.assessment,
+                          size: 64,
+                          color: Colors.grey.shade400,
+                        ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'No Assessments Available',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'None of your assigned students have shared their assessments with counselors yet.',
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 80.0),
+                  itemCount: assessments.length,
+                  itemBuilder: (context, index) {
+                    try {
+                      final assessmentDoc = assessments[index];
+                      final assessment =
+                          assessmentDoc.data() as Map<String, dynamic>;
+                      final DateTime timestamp =
+                          (assessment['timestamp'] as Timestamp).toDate();
+                      final String userId = assessment['userId'] as String;
+
+                      // Format timestamp to a readable string
+                      final String formattedDate = DateFormat(
+                        'dd/MM/yyyy HH:mm',
+                      ).format(timestamp);
+
+                      return _buildAssessmentListItem(
+                        context,
+                        userId: userId,
+                        formattedDate: formattedDate,
+                        assessmentDoc: assessmentDoc,
+                      );
+                    } catch (e) {
+                      return ListTile(
+                        title: Text('Error loading assessment'),
+                        subtitle: Text(e.toString()),
+                        tileColor: Colors.red.shade50,
+                      );
+                    }
+                  },
+                );
               },
             );
           },

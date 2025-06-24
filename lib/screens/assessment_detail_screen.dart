@@ -749,18 +749,31 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
   }
 
   Widget _buildAssessmentSection(BuildContext context) {
-    return FutureBuilder<DocumentSnapshot>(
-      future:
-          FirebaseFirestore.instance
-              .collection('user_assessments')
-              .doc(widget.assessmentId)
-              .get(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+    // Get current logged-in counselor ID
+    final currentCounselorId = FirebaseAuth.instance.currentUser?.uid;
+    
+    if (currentCounselorId == null) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Text('Please log in to view assessments'),
+        ),
+      );
+    }
+
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+        .collection('counselor_assignments')
+        .where('counselorId', isEqualTo: currentCounselorId)
+        .where('studentId', isEqualTo: widget.studentId)
+        .limit(1)
+        .snapshots(),
+      builder: (context, assignmentSnapshot) {
+        if (assignmentSnapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
-
-        if (snapshot.hasError) {
+        
+        if (assignmentSnapshot.hasError) {
           return Card(
             child: Padding(
               padding: const EdgeInsets.all(16.0),
@@ -768,221 +781,285 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
                 children: [
                   const Icon(Icons.error_outline, color: Colors.red),
                   const SizedBox(height: 8),
-                  Text('Error loading assessment data: ${snapshot.error}'),
+                  Text('Error loading assignment data: ${assignmentSnapshot.error}'),
                 ],
               ),
             ),
           );
         }
-
-        final assessmentData = snapshot.data?.data() as Map<String, dynamic>?;
-
-        if (assessmentData == null) {
-          return const Card(
+        
+        final assignments = assignmentSnapshot.data?.docs ?? [];
+        
+        // If no assignment exists, show message
+        if (assignments.isEmpty) {
+          return Card(
             child: Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Text('Assessment data not found'),
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  const Icon(Icons.info_outline, color: Colors.amber),
+                  const SizedBox(height: 8),
+                  const Text('You are not assigned to this student.'),
+                ],
+              ),
             ),
           );
         }
+        
+        // If assignment exists, check the assessment
+        return FutureBuilder<DocumentSnapshot>(
+          future: FirebaseFirestore.instance
+              .collection('user_assessments')
+              .doc(widget.assessmentId)
+              .get(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-        final List<dynamic> answers = assessmentData['answers'] ?? [];
-        final DateTime timestamp =
-            (assessmentData['timestamp'] as Timestamp).toDate();
-        final String formattedDate = DateFormat(
-          'MMMM dd, yyyy - HH:mm',
-        ).format(timestamp);
-        final int totalQuestions = answers.length;
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Assessment info header - Full width
-            SizedBox(
-              width: double.infinity,
-              child: Card(
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+            if (snapshot.hasError) {
+              return Card(
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Assessment Information',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      const Icon(Icons.error_outline, color: Colors.red),
                       const SizedBox(height: 8),
-                      Text('Submitted on $formattedDate'),
-                      const SizedBox(height: 4),
-                      Text('Total Questions: $totalQuestions'),
+                      Text('Error loading assessment data: ${snapshot.error}'),
                     ],
                   ),
                 ),
-              ),
-            ),
+              );
+            }
 
-            const SizedBox(height: 16),
+            final assessmentData = snapshot.data?.data() as Map<String, dynamic>?;
 
-            // Assessment results header
-            const Text(
-              'Assessment Results',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
+            if (assessmentData == null) {
+              return const Card(
+                child: Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Text('Assessment data not found'),
+                ),
+              );
+            }
+            
+            // Check if assessment is shared with counselor
+            final bool sharedWithCounselor = assessmentData['shared_with_counselor'] ?? false;
+            
+            if (!sharedWithCounselor) {
+              return Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    children: [
+                      const Icon(Icons.lock, color: Colors.grey),
+                      const SizedBox(height: 8),
+                      const Text('This assessment is not shared with counselors'),
+                    ],
+                  ),
+                ),
+              );
+            }
 
-            const SizedBox(height: 12),
+            final List<dynamic> answers = assessmentData['answers'] ?? [];
+            final DateTime timestamp =
+                (assessmentData['timestamp'] as Timestamp).toDate();
+            final String formattedDate = DateFormat(
+              'MMMM dd, yyyy - HH:mm',
+            ).format(timestamp);
+            final int totalQuestions = answers.length;
 
-            // Score display card
-            Card(
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Overall Score',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Assessment info header - Full width
+                SizedBox(
+                  width: double.infinity,
+                  child: Card(
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: LinearProgressIndicator(
-                            value: (assessmentData['score'] ?? 0) / 100,
-                            backgroundColor: Colors.grey.shade200,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              _getScoreColor(assessmentData['score'] ?? 0),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Assessment Information',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 16),
-                        Text(
-                          '${(assessmentData['score'] ?? 0).toStringAsFixed(1)}%',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: _getScoreColor(assessmentData['score'] ?? 0),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _getScoreDescription(assessmentData['score'] ?? 0),
-                      style: TextStyle(
-                        color: Colors.grey.shade700,
+                          const SizedBox(height: 8),
+                          Text('Submitted on $formattedDate'),
+                          const SizedBox(height: 4),
+                          Text('Total Questions: $totalQuestions'),
+                        ],
                       ),
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
 
-            const SizedBox(height: 16),
+                const SizedBox(height: 16),
 
-            // Questions and answers - Full width
-            ...List.generate(answers.length, (index) {
-              final answer = answers[index];
-              final String question =
-                  answer['question'] ?? 'Question not available';
-              final String answerText = answer['answer'] ?? 'No answer';
-              final int questionNumber = index + 1;
+                // Assessment results header
+                const Text(
+                  'Assessment Results',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
 
-              return SizedBox(
-                width: double.infinity,
-                child: Card(
-                  margin: const EdgeInsets.only(bottom: 12),
+                const SizedBox(height: 12),
+
+                // Score display card
+                Card(
+                  elevation: 2,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        const Text(
+                          'Overall Score',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
                         Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Question number
-                            Container(
-                              width: 28,
-                              height: 28,
-                              alignment: Alignment.center,
-                              margin: const EdgeInsets.only(right: 10, top: 0),
-                              decoration: BoxDecoration(
-                                color: Colors.grey.shade100,
-                                shape: BoxShape.circle,
-                              ),
-                              child: Text(
-                                '$questionNumber',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.grey.shade700,
+                            Expanded(
+                              child: LinearProgressIndicator(
+                                value: (assessmentData['score'] ?? 0) / 100,
+                                backgroundColor: Colors.grey.shade200,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  _getScoreColor(assessmentData['score'] ?? 0),
                                 ),
                               ),
                             ),
-                            // Question text
-                            Expanded(
-                              child: Text(
-                                question,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w500,
-                                  fontSize: 16,
-                                ),
+                            const SizedBox(width: 16),
+                            Text(
+                              '${(assessmentData['score'] ?? 0).toStringAsFixed(1)}%',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: _getScoreColor(assessmentData['score'] ?? 0),
                               ),
                             ),
                           ],
                         ),
                         const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            const SizedBox(
-                              width: 38,
-                            ), // Align with question text
-                            const Text(
-                              'Answer: ',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            Chip(
-                              label: Text(
-                                answerText,
-                                style: TextStyle(
-                                  color:
-                                      Theme.of(
-                                        context,
-                                      ).textTheme.bodyLarge?.color,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              backgroundColor: Colors.grey.shade100,
-                              padding: EdgeInsets.zero,
-                            ),
-                          ],
+                        Text(
+                          _getScoreDescription(assessmentData['score'] ?? 0),
+                          style: TextStyle(
+                            color: Colors.grey.shade700,
+                          ),
                         ),
                       ],
                     ),
                   ),
                 ),
-              );
-            }),
 
-            const SizedBox(height: 16),
-          ],
+                const SizedBox(height: 16),
+
+                // Questions and answers - Full width
+                ...List.generate(answers.length, (index) {
+                  final answer = answers[index];
+                  final String question =
+                      answer['question'] ?? 'Question not available';
+                  final String answerText = answer['answer'] ?? 'No answer';
+                  final int questionNumber = index + 1;
+
+                  return SizedBox(
+                    width: double.infinity,
+                    child: Card(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Question number
+                                Container(
+                                  width: 28,
+                                  height: 28,
+                                  alignment: Alignment.center,
+                                  margin: const EdgeInsets.only(right: 10, top: 0),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.shade100,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Text(
+                                    '$questionNumber',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.grey.shade700,
+                                    ),
+                                  ),
+                                ),
+                                // Question text
+                                Expanded(
+                                  child: Text(
+                                    question,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                const SizedBox(
+                                  width: 38,
+                                ), // Align with question text
+                                const Text(
+                                  'Answer: ',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                Chip(
+                                  label: Text(
+                                    answerText,
+                                    style: TextStyle(
+                                      color:
+                                          Theme.of(
+                                            context,
+                                          ).textTheme.bodyLarge?.color,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  backgroundColor: Colors.grey.shade100,
+                                  padding: EdgeInsets.zero,
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+
+                const SizedBox(height: 16),
+              ],
+            );
+          },
         );
       },
     );
