@@ -18,6 +18,7 @@ import '../models/mood_entry.dart';
 import 'package:sentimo/components/student/student_forum_component.dart';
 import 'package:sentimo/services/notification_service.dart';
 import 'package:sentimo/pages/notification_page.dart';
+import 'package:sentimo/services/notification_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -176,6 +177,10 @@ class _HomeScreenState extends State<HomeScreen> {
           });
 
       print('Successfully saved mood to Firebase');
+      
+      // Check for bad mood streak after saving mood data
+      await NotificationService().checkAndNotifyBadMoodStreak();
+      
     } catch (e) {
       print('Error saving mood data: $e');
 
@@ -531,12 +536,24 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _openNotificationPage() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(builder: (context) => const NotificationPage()),
-    );
-    _checkUnseenNotifications();
+void _openNotificationPage() async {
+  final result = await Navigator.of(context).push(
+    MaterialPageRoute(builder: (context) => const NotificationPage()),
+  );
+  
+  // Check if we need to navigate to a specific tab
+  if (result != null && result is Map<String, dynamic>) {
+    final navigateToTab = result['navigateToTab'] as int?;
+    if (navigateToTab != null) {
+      setState(() {
+        _selectedIndex = navigateToTab;
+      });
+      _pageController.jumpToPage(navigateToTab);
+    }
   }
+  
+  _checkUnseenNotifications();
+}
 
   @override
   void dispose() {
@@ -558,6 +575,14 @@ class _HomeScreenState extends State<HomeScreen> {
       _pageController.jumpToPage(index);
     }
   }
+
+  void navigateToAssessmentTab() {
+    setState(() {
+      _selectedIndex = 3;
+    });
+    _pageController.jumpToPage(3);
+  }
+  
 
   void _showProfileOptions(BuildContext context) {
     final userProvider = Provider.of<UserProvider>(context, listen: false);

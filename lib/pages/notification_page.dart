@@ -19,6 +19,11 @@ class _NotificationPageState extends State<NotificationPage> {
   void initState() {
     super.initState();
     _loadAllNotifications();
+    _markNotificationsAsSeen();
+  }
+
+  Future<void> _markNotificationsAsSeen() async {
+    await NotificationService().markAllAsSeen();
   }
 
   Future<void> _loadAllNotifications() async {
@@ -31,24 +36,37 @@ class _NotificationPageState extends State<NotificationPage> {
       });
       return;
     }
-    // 1. Load local motivational quotes
-    final localQuotes = await NotificationService().getNotifications();
 
-    // Filter: Only one quote per day (keep the latest for each day)
+    // 1. Load local notifications (quotes + bad mood alerts)
+    final localNotifications = await NotificationService().getNotifications();
+
+    // Group quotes by day and keep assessment notifications separate
     final Map<String, _UnifiedNotification> quoteByDay = {};
-    for (final q in localQuotes) {
-      final dayKey = DateFormat('yyyy-MM-dd').format(q.dateTime);
-      final notif = _UnifiedNotification(
-        message: q.quote,
-        dateTime: q.dateTime,
-        type: _NotifType.quote,
-      );
-      // If there's already a quote for this day, keep the latest one
-      if (!quoteByDay.containsKey(dayKey) || q.dateTime.isAfter(quoteByDay[dayKey]!.dateTime)) {
-        quoteByDay[dayKey] = notif;
+    final List<_UnifiedNotification> assessmentNotifications = [];
+
+    for (final notif in localNotifications) {
+      if (notif.type == 'bad_mood_streak') {
+        assessmentNotifications.add(_UnifiedNotification(
+          message: notif.quote,
+          dateTime: notif.dateTime,
+          type: _NotifType.assessment,
+        ));
+      } else {
+        final dayKey = DateFormat('yyyy-MM-dd').format(notif.dateTime);
+        final unifiedNotif = _UnifiedNotification(
+          message: notif.quote,
+          dateTime: notif.dateTime,
+          type: _NotifType.quote,
+        );
+        
+        if (!quoteByDay.containsKey(dayKey) || 
+            notif.dateTime.isAfter(quoteByDay[dayKey]!.dateTime)) {
+          quoteByDay[dayKey] = unifiedNotif;
+        }
       }
     }
-    final localUnified = quoteByDay.values.toList();
+
+    final localUnified = [...quoteByDay.values, ...assessmentNotifications];
 
     // 2. Load Firestore appointments
     final firestoreSnapshot = await FirebaseFirestore.instance
@@ -56,6 +74,7 @@ class _NotificationPageState extends State<NotificationPage> {
         .where('studentId', isEqualTo: user.uid)
         .orderBy('datetime', descending: true)
         .get();
+    
     final firestoreUnified = firestoreSnapshot.docs.map((doc) {
       final data = doc.data() as Map<String, dynamic>;
       final counselorName = data['counselorName'] ?? 'Counselor';
@@ -79,7 +98,6 @@ class _NotificationPageState extends State<NotificationPage> {
         default:
           message = "You have a $sessionType appointment with $counselorName on "
               "${DateFormat('MMM dd, yyyy – hh:mm a').format(dateTime)}.";
-          // Add meeting link info for online appointments
           if (sessionType.toLowerCase() == 'online' && notes.isNotEmpty) {
             message += " Meeting link: $notes";
           }
@@ -96,6 +114,7 @@ class _NotificationPageState extends State<NotificationPage> {
     // 3. Merge and sort
     final allNotifs = [...localUnified, ...firestoreUnified];
     allNotifs.sort((a, b) => b.dateTime.compareTo(a.dateTime));
+    
     setState(() {
       _allNotifications = allNotifs;
       _loading = false;
@@ -114,86 +133,188 @@ class _NotificationPageState extends State<NotificationPage> {
       ),
       backgroundColor: const Color.fromARGB(255, 241, 245, 229),
       body: _loading
-              ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator())
           : _allNotifications.isEmpty
               ? _buildEmptyState(theme)
               : ListView.separated(
-                padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(16),
                   itemCount: _allNotifications.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
-                itemBuilder: (context, index) {
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  itemBuilder: (context, index) {
                     final notif = _allNotifications[index];
-                  return Card(
-                    elevation: 2,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(20.0),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                                color: notif.type == _NotifType.quote
-                                    ? const Color.fromARGB(255, 211, 231, 190)
-                                    : const Color.fromARGB(255, 255, 243, 207),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                              child: Icon(
-                                notif.type == _NotifType.quote
-                                    ? Icons.format_quote
-                                    : (notif.status == 'cancelled' 
-                                        ? Icons.cancel 
-                                        : Icons.event),
-                                color: notif.type == _NotifType.quote
-                                    ? const Color.fromARGB(255, 31, 153, 27)
-                                    : (notif.status == 'cancelled' 
-                                        ? Colors.red 
-                                        : Colors.orange.shade700),
-                              size: 28,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                    notif.message,
-                                  style: theme.textTheme.bodyLarge?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                      color: const Color.fromARGB(255, 36, 99, 12),
-                                  ),
-                                ),
-                                const SizedBox(height: 10),
-                                Row(
-                                  children: [
-                                    Icon(
-                                      Icons.access_time,
-                                      size: 16,
-                                      color: Colors.grey.shade500,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                        DateFormat('MMM dd, yyyy – hh:mm a').format(notif.dateTime),
-                                        style: theme.textTheme.bodySmall?.copyWith(
-                                            color: Colors.grey.shade600,
-                                          ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+                    return _buildNotificationCard(notif, theme);
+                  },
+                ),
+    );
+  }
+
+  Widget _buildNotificationCard(_UnifiedNotification notif, ThemeData theme) {
+    IconData iconData;
+    Color iconColor;
+    Color backgroundColor;
+    
+    switch (notif.type) {
+      case _NotifType.quote:
+        iconData = Icons.format_quote;
+        iconColor = const Color.fromARGB(255, 31, 153, 27);
+        backgroundColor = const Color.fromARGB(255, 211, 231, 190);
+        break;
+      case _NotifType.assessment:
+        iconData = Icons.psychology;
+        iconColor = Colors.purple.shade700;
+        backgroundColor = Colors.purple.shade100;
+        break;
+      case _NotifType.appointment:
+        iconData = notif.status == 'cancelled' ? Icons.cancel : Icons.event;
+        iconColor = notif.status == 'cancelled' ? Colors.red : Colors.orange.shade700;
+        backgroundColor = const Color.fromARGB(255, 255, 243, 207);
+        break;
+    }
+
+    return Card(
+      elevation: notif.type == _NotifType.assessment ? 4 : 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: notif.type == _NotifType.assessment 
+            ? BorderSide(color: Colors.purple.shade300, width: 1)
+            : BorderSide.none,
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: notif.type == _NotifType.assessment 
+            ? () => _onAssessmentNotificationTap() 
+            : null,
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: backgroundColor,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  iconData,
+                  color: iconColor,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      notif.message,
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: const Color.fromARGB(255, 36, 99, 12),
                       ),
                     ),
-                  );
-                },
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.access_time,
+                          size: 16,
+                          color: Colors.grey.shade500,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          DateFormat('MMM dd, yyyy – hh:mm a').format(notif.dateTime),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (notif.type == _NotifType.assessment) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.purple.shade50,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: Colors.purple.shade200),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.touch_app, size: 16, color: Colors.purple.shade700),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Tap to take assessment',
+                              style: TextStyle(
+                                color: Colors.purple.shade700,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
+            ],
+          ),
+        ),
+      ),
     );
+  }
+
+  void _onAssessmentNotificationTap() {
+    // Show confirmation dialog first
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Icon(Icons.psychology, color: Colors.purple.shade700),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'Mental Health Assessment',
+                  style: TextStyle(fontSize: 18),
+                ),
+              ),
+            ],
+          ),
+          content: const Text(
+            'We noticed you\'ve been feeling down lately. Taking a mental health assessment can help you understand your wellbeing and get appropriate support.\n\nWould you like to take the assessment now?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Maybe Later'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close dialog
+                _navigateToAssessment();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.purple.shade700,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Take Assessment'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _navigateToAssessment() {
+    // Navigate back to home screen with assessment tab selected
+    Navigator.of(context).pop({'navigateToTab': 3});
   }
 
   Widget _buildEmptyState(ThemeData theme) {
@@ -219,7 +340,7 @@ class _NotificationPageState extends State<NotificationPage> {
             ),
             const SizedBox(height: 12),
             Text(
-              'You will receive motivational quotes and appointment notifications here.',
+              'You will receive motivational quotes, mental health check-ins, and appointment notifications here.',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: Colors.purple.shade700,
               ),
@@ -232,13 +353,14 @@ class _NotificationPageState extends State<NotificationPage> {
   }
 }
 
-enum _NotifType { quote, appointment }
+enum _NotifType { quote, appointment, assessment }
 
 class _UnifiedNotification {
   final String message;
   final DateTime dateTime;
   final _NotifType type;
   final String? status;
+  
   _UnifiedNotification({
     required this.message, 
     required this.dateTime, 
@@ -260,7 +382,7 @@ Future<void> sendAppointmentNotificationToStudent({
     'message': message,
     'timestamp': FieldValue.serverTimestamp(),
     'seen': false,
-    'type': 'appointment', // Optional: to distinguish notification type
+    'type': 'appointment',
   });
 }
 
@@ -277,6 +399,6 @@ Future<void> sendAppointmentCancellationNotification({
     'message': message,
     'timestamp': FieldValue.serverTimestamp(),
     'seen': false,
-    'type': 'cancellation', // Optional: to distinguish notification type
+    'type': 'cancellation',
   });
 }
