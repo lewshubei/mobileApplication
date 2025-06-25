@@ -88,18 +88,18 @@ class MentalHealthAssessmentComponent extends StatelessWidget {
           );
         }
 
-        // First, fetch the counselor's assigned students from the counselor_assignments collection
+        // First, we need to identify which students are assigned to this counselor
         return StreamBuilder<QuerySnapshot>(
           stream: FirebaseFirestore.instance
-              .collection('counselor_assignments')
-              .where('counselorId', isEqualTo: user.uid)
+              .collection('users')
+              .where('assignedCounselorId', isEqualTo: user.uid)
               .snapshots(),
-          builder: (context, assignmentsSnapshot) {
-            if (assignmentsSnapshot.connectionState == ConnectionState.waiting) {
+          builder: (context, assignedStudentsSnapshot) {
+            if (assignedStudentsSnapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
             }
 
-            if (assignmentsSnapshot.hasError) {
+            if (assignedStudentsSnapshot.hasError) {
               return Center(
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
@@ -121,7 +121,7 @@ class MentalHealthAssessmentComponent extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        assignmentsSnapshot.error.toString(),
+                        assignedStudentsSnapshot.error.toString(),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -130,11 +130,11 @@ class MentalHealthAssessmentComponent extends StatelessWidget {
               );
             }
 
-            final assignments = assignmentsSnapshot.data?.docs ?? [];
+            final assignedStudents = assignedStudentsSnapshot.data?.docs ?? [];
             
-            // Extract the studentIds from assignments
-            final List<String> assignedStudentIds = assignments
-                .map((doc) => (doc.data() as Map<String, dynamic>)['studentId'] as String)
+            // Extract the studentIds that are assigned to this counselor
+            final List<String> assignedStudentIds = assignedStudents
+                .map((doc) => doc.id)
                 .toList();
             
             if (assignedStudentIds.isEmpty) {

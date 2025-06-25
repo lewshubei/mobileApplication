@@ -514,6 +514,7 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
                       ),
                       // Replace kebab menu with New Appointment button
                       ElevatedButton.icon(
+                        icon: const Icon(Icons.add, size: 16),
                         label: const Text("New Appointment"),
                         onPressed: () => _makeAppointment(context),
                         style: ElevatedButton.styleFrom(
@@ -610,6 +611,7 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
                       ),
                       // Replace kebab menu with New Appointment button
                       ElevatedButton.icon(
+                        icon: const Icon(Icons.add, size: 16),
                         label: const Text("New Appointment"),
                         onPressed: () => _makeAppointment(context),
                         style: ElevatedButton.styleFrom(
@@ -649,6 +651,26 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
         return Colors.red.shade700;
       default:
         return Colors.grey.shade700;
+    }
+  }
+
+  Color _getScoreColor(double score) {
+    if (score >= 70) {
+      return Colors.green.shade700;
+    } else if (score >= 40) {
+      return Colors.amber.shade700;
+    } else {
+      return Colors.red.shade700;
+    }
+  }
+
+  String _getScoreDescription(double score) {
+    if (score >= 70) {
+      return "Good mental health state";
+    } else if (score >= 40) {
+      return "Moderate mental health concerns";
+    } else {
+      return "Significant mental health concerns";
     }
   }
 
@@ -731,19 +753,18 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
       );
     }
 
-    return StreamBuilder<QuerySnapshot>(
+    // First check if the counselor is assigned to this student
+    return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance
-        .collection('counselor_assignments')
-        .where('counselorId', isEqualTo: currentCounselorId)
-        .where('studentId', isEqualTo: widget.studentId)
-        .limit(1)
+        .collection('users')
+        .doc(widget.studentId)
         .snapshots(),
-      builder: (context, assignmentSnapshot) {
-        if (assignmentSnapshot.connectionState == ConnectionState.waiting) {
+      builder: (context, userSnapshot) {
+        if (userSnapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
         
-        if (assignmentSnapshot.hasError) {
+        if (userSnapshot.hasError) {
           return Card(
             child: Padding(
               padding: const EdgeInsets.all(16.0),
@@ -751,32 +772,49 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
                 children: [
                   const Icon(Icons.error_outline, color: Colors.red),
                   const SizedBox(height: 8),
-                  Text('Error loading assignment data: ${assignmentSnapshot.error}'),
+                  Text('Error loading user data: ${userSnapshot.error}'),
                 ],
               ),
             ),
           );
         }
         
-        final assignments = assignmentSnapshot.data?.docs ?? [];
-        
-        // If no assignment exists, show message
-        if (assignments.isEmpty) {
+        if (!userSnapshot.hasData || !userSnapshot.data!.exists) {
           return Card(
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 children: [
-                  const Icon(Icons.info_outline, color: Colors.amber),
+                  const Icon(Icons.person_off, color: Colors.grey),
                   const SizedBox(height: 8),
-                  const Text('You are not assigned to this student.'),
+                  const Text('Student record not found'),
                 ],
               ),
             ),
           );
         }
         
-        // If assignment exists, check the assessment
+        final userData = userSnapshot.data!.data() as Map<String, dynamic>?;
+        final String? assignedCounselorId = userData?['assignedCounselorId'];
+        
+        // Check if the current counselor is assigned to this student
+        if (assignedCounselorId != currentCounselorId) {
+          return Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  const Icon(Icons.security, color: Colors.orange),
+                  const SizedBox(height: 8),
+                  const Text('You are not assigned to this student.'),
+                  const Text('Only the assigned counselor can view their assessments.'),
+                ],
+              ),
+            ),
+          );
+        }
+        
+        // If the counselor is assigned to this student, now check the assessment
         return FutureBuilder<DocumentSnapshot>(
           future: FirebaseFirestore.instance
               .collection('user_assessments')
@@ -999,23 +1037,16 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
                                 const Text(
                                   'Answer: ',
                                   style: TextStyle(
-                                    fontSize: 14,
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
-                                Chip(
-                                  label: Text(
+                                Expanded(
+                                  child: Text(
                                     answerText,
                                     style: TextStyle(
-                                      color:
-                                          Theme.of(
-                                            context,
-                                          ).textTheme.bodyLarge?.color,
-                                      fontWeight: FontWeight.w500,
+                                      color: Colors.grey.shade900,
                                     ),
                                   ),
-                                  backgroundColor: Colors.grey.shade100,
-                                  padding: EdgeInsets.zero,
                                 ),
                               ],
                             ),
@@ -1025,27 +1056,11 @@ class _AssessmentDetailScreenState extends State<AssessmentDetailScreen> {
                     ),
                   );
                 }),
-
-                const SizedBox(height: 16),
               ],
             );
           },
         );
       },
     );
-  }
-
-  Color _getScoreColor(double score) {
-    if (score >= 80) return Colors.red;
-    if (score >= 60) return Colors.orange[800]!;
-    if (score >= 40) return Colors.amber[800]!;
-    return Colors.green[800]!;
-  }
-
-  String _getScoreDescription(double score) {
-    if (score >= 80) return 'Needs attention - Consider speaking with a counselor';
-    if (score >= 60) return 'Moderate mental wellbeing';
-    if (score >= 40) return 'Good mental wellbeing';
-    return 'Excellent mental wellbeing';
   }
 }
